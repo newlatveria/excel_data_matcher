@@ -58,16 +58,25 @@ Turning off deduplication allows for detailed examination, showing every instanc
 
 ---
 
-## 🛠️ How to Use (Quick Start)
+## 🛠️ Installation and Usage
 
 This tool is a single, self-contained HTML file. No installation, libraries, or server setup is required!
 
-1.  **Save the Code:** Copy the entire code block and save it as an HTML file (e.g., `Matcher.html`).
-2.  **Open in Browser:** Double-click the saved file to open it in any modern web browser (Chrome, Edge, Firefox, etc.).
-3.  **Load Data:** Click **"Choose Excel File"** and select your `.xlsx` or `.xls` document.
-4.  **Select Sheets:** Click on **exactly two** sheets in the list to define the comparison pair.
-5.  **Run Comparison:** Click the **"Find All Potential Matches"** button. The tool will start analyzing all column combinations.
-6.  **Analyze Results:** Review the resulting groups. The matching columns are **highlighted** in the results table for easy visual inspection.
+### **Direct Download and Local Use (Recommended)**
+
+This is the fastest and easiest method to use the client-side application and allows you to run it completely **offline** after the first load.
+
+1.  **Download:**
+    * Click the green **`< > Code`** button.
+    * Select **`Download ZIP`**.
+2.  **Extract & Launch:** Unzip the downloaded file. Find the `data-matcher.html` file and **double-click it** to open it in your default web browser.
+
+Once opened, proceed with the following steps:
+
+1.  **Load Data:** Click **"Choose Excel File"** and select your `.xlsx` or `.xls` document.
+2.  **Select Sheets:** Click on **exactly two** sheets in the list to define the comparison pair.
+3.  **Run Comparison:** Click the **"Find All Potential Matches"** button.
+4.  **Analyze Results:** Review the resulting groups. The matching columns are **highlighted** in the results table for easy visual inspection.
 
 ---
 
