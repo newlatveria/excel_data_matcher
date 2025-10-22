@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Data Matcher (Post-Match Column Selection)</title>
+    <title>Excel Data Utility (Dual Mode) - Debug Log Enabled</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -19,8 +19,10 @@
         .controls { background: #16213e; border-radius: 12px; padding: 25px; margin-bottom: 30px; display: none; }
         .control-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; color: #00d4ff; font-weight: 600; font-size: 0.95em; }
-        input[type="number"] { width: 100%; padding: 12px; background: #0f1626; border: 1px solid #2a3f5f; border-radius: 6px; color: #eee; font-size: 1em; }
-        input:focus { outline: none; border-color: #00d4ff; }
+        input[type="text"], input[type="number"], select, .match-group-filters input[type="text"], .match-group-filters input[type="number"] { width: 100%; padding: 12px; background: #0f1626; border: 1px solid #2a3f5f; border-radius: 6px; color: #eee; font-size: 1em; }
+        select { appearance: none; /* Removes default dropdown arrow */ background: #0f1626 url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%2300D4FF%22%20d%3D%22M10%203L6%207L2%203L0%205L6%2011L12%205L10%203Z%22%2F%3E%3C%2Fsvg%3E") no-repeat right 12px center; background-size: 12px; cursor: pointer; }
+        .match-group-filters input[type="text"], .match-group-filters input[type="number"] { padding: 8px !important; font-size: 0.9em !important; }
+        input:focus, select:focus { outline: none; border-color: #00d4ff; }
         .checkbox-group { display: flex; align-items: center; gap: 10px; }
         input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
         .checkbox-group label { margin: 0; cursor: pointer; }
@@ -38,10 +40,9 @@
         .stat-label { color: #aaa; font-size: 0.9em; margin-top: 5px; }
         .match-groups { margin-bottom: 30px; }
         .match-group { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        .match-header { color: #00d4ff; font-size: 1.2em; font-weight: bold; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #2a3f5f; }
-        .match-info { color: #aaa; font-size: 0.9em; margin-bottom: 15px; }
+        .match-header { color: #00d4ff; font-size: 1.2em; font-weight: bold; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #2a3f5f; display: flex; justify-content: space-between; align-items: center; }
         
-        /* RESULTS BOX HEIGHT LIMIT (Approx. 10 lines) */
+        /* RESULTS BOX HEIGHT LIMIT */
         .table-container { 
             overflow-x: auto; 
             max-height: 450px; 
@@ -58,10 +59,13 @@
         .tab-badge { background: rgba(0, 212, 255, 0.2); color: #00d4ff; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 5px; }
         .export-btn { 
             background: linear-gradient(135deg, #00ffaa, #00cc88); 
-            width: auto !important; /* Override W:100% */
-            margin-right: 10px;
+            width: auto !important; 
             padding: 10px 20px;
             font-size: 0.9em;
+            margin-left: 10px; 
+        }
+        .export-btn.duplicate-export {
+            background: linear-gradient(135deg, #ff9900, #cc7a00);
         }
         .export-btn:hover { box-shadow: 0 5px 20px rgba(0, 255, 170, 0.4); }
         .info { background: #0288d1; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
@@ -95,12 +99,40 @@
             font-weight: bold;
             margin-bottom: 15px;
         }
+        #dedupeBtn {
+            background: linear-gradient(135deg, #f06, #c03);
+            width: 100%;
+        }
+        #dedupeBtn:hover {
+            box-shadow: 0 5px 20px rgba(255, 0, 102, 0.4);
+        }
+        
+        .dedupe-group-title {
+            color: #00d4ff;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        /* Style for the filter labels in the match groups */
+        .match-group-filters label {
+             color: #ccc; 
+             font-size: 0.85em; 
+             margin-bottom: 3px; 
+             display: block; 
+             font-weight: normal;
+        }
+        /* Targeted match button style */
+        #targetedMatchBtn {
+            background: linear-gradient(135deg, #00ffaa, #00cc88);
+        }
+        #targetedMatchBtn:hover {
+            box-shadow: 0 5px 20px rgba(0, 255, 170, 0.4);
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📊 Excel Data Matcher (Full Comparison Mode)</h1>
-        <p class="subtitle">Select **two sheets**. The tool finds **ALL** matches between every column combination, allowing you to choose the best matching fields post-calculation.</p>
+        <h1>📊 Excel Data Utility (Dual Mode) - Debug Enabled</h1>
+        <p class="subtitle">Select **one sheet** for deduplication or **two sheets** for comparison. **Please open your browser's Console (F12) to view detailed file-loading logs.**</p>
 
         <div class="upload-section">
             <input type="file" id="fileInput" accept=".xlsx,.xls">
@@ -109,30 +141,65 @@
         </div>
 
         <div class="controls" id="controls">
-            <label class="selection-status" id="selectionStatus">Please select **exactly two** sheets to compare:</label>
+            <label class="selection-status" id="selectionStatus">Please select one sheet for deduplication or two for comparison. (Selected: 0)</label>
             <div id="sheetSelector">
                 </div>
             
-            <div class="control-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="removeDuplicates" checked>
-                    <label for="removeDuplicates">🧹 **Remove Duplicate Matches** (Keeps only one instance of a matched row pair)</label>
+            <div class="control-group" id="dedupeControls" style="display: none;">
+                <button class="btn" id="dedupeBtn">🧹 Find and Remove Duplicates within Sheet</button>
+            </div>
+
+            <div id="matchControls" style="display: none;">
+                
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="dedupeSourceSheets" checked>
+                        <label for="dedupeSourceSheets">🧼 **Pre-Clean Source Sheets** (Remove duplicate rows within Sheet 1 & Sheet 2 before comparison)</label>
+                    </div>
                 </div>
-            </div>
 
-            <div class="control-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="fuzzyMatch">
-                    <label for="fuzzyMatch">✨ Enable Fuzzy Matching (Levenshtein Distance)</label>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="robustExactMatch">
+                        <label for="robustExactMatch">💪 **Enable Robust Exact Match** (Aggressively strips spaces, punctuation, and numbers for **Exact** check: `JohnSmith` = `john,Smith` = `Smith2John` = **`John Smith` vs `Smith John`**)</label>
+                    </div>
                 </div>
-            </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="removeDuplicates" checked>
+                        <label for="removeDuplicates">🧹 **Remove Cross-Sheet Duplicate Matches** (Keeps only one instance of a matched row pair, e.g., prevents matching on both ID *and* Name if both link the same Sheet1 Row to the same Sheet2 Row)</label>
+                    </div>
+                </div>
 
-            <div class="control-group" id="fuzzyOptions" style="display: none;">
-                <label>Fuzzy Match Threshold (0-100, lower = more lenient, recommended 20)</label>
-                <input type="number" id="fuzzyThreshold" min="0" max="100" value="20" step="5">
-            </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="fuzzyMatch">
+                        <label for="fuzzyMatch">✨ Enable Fuzzy Matching (Levenshtein Distance)</label>
+                    </div>
+                </div>
 
-            <button class="btn" id="matchBtn" disabled>Find All Potential Matches</button>
+                <div class="control-group" id="fuzzyOptions" style="display: none;">
+                    <label>Fuzzy Match Threshold (0-100, lower = more lenient, recommended 20)</label>
+                    <input type="number" id="fuzzyThreshold" min="0" max="100" value="20" step="5">
+                </div>
+                
+                <div class="control-group" id="targetedMatchControls" style="border-top: 1px solid #2a3f5f; padding-top: 20px;">
+                    <h3 style="color: #00ffaa; margin-bottom: 15px;">🎯 Targeted Column Match</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <label id="col1Label">Sheet 1 Column (to search)</label>
+                            <select id="column1Selector"></select>
+                        </div>
+                        <div>
+                            <label id="col2Label">Sheet 2 Column(s) (to match against)</label>
+                            <select id="column2Selector"></select>
+                            <p style="color: #aaa; font-size: 0.85em; margin-top: 5px;">*Select **"ALL"** to compare Sheet 1's chosen column against every column in Sheet 2.*</p>
+                        </div>
+                    </div>
+                    <button class="btn" id="targetedMatchBtn" style="margin-top: 20px;">🎯 Run Targeted Match</button>
+                </div>
+                <button class="btn" id="matchBtn" disabled>Find All Potential Matches (Exhaustive)</button>
+            </div>
         </div>
 
         <div class="progress" id="progress">
@@ -144,9 +211,37 @@
 
         <div class="results" id="results">
             <div class="stats" id="stats"></div>
-            <div class="info">⚠️ Only the first **1,000 matches per column pair** will be displayed below. All matches are included in the exported files. Display height is limited to ~10 rows.</div>
+            <div class="info" id="resultsInfo">⚠️ Only the first **1,000** rows/matches will be displayed below. All results are included in the exported files.</div>
+            
+            <div id="groupFilters" class="controls" style="display: none; padding: 20px; margin-bottom: 20px;">
+                <h3 style="color: #00ffaa; margin-bottom: 15px;">🔍 Global Match Group Filters (Filter groups, not rows)</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                    <div class="control-group" style="margin-bottom: 0;">
+                        <label for="headerSelector">Matched Column Pair Filter</label>
+                        <select id="headerSelector">
+                            <option value="all">--- Show All Column Pairs ---</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group" style="margin-bottom: 0;">
+                        <label for="minMatches">Min Match Count</label>
+                        <input type="number" id="minMatches" min="0" value="0" step="1">
+                    </div>
+                    
+                    <div class="control-group" style="margin-bottom: 0;">
+                        <label for="maxMatches">Max Match Count</label>
+                        <input type="number" id="maxMatches" min="0" value="9999999" step="1">
+                    </div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="filterFuzzy">
+                        <label for="filterFuzzy">🧠 **Show Only Groups with Fuzzy Matches**</label>
+                    </div>
+                </div>
+            </div>
             <div class="match-groups" id="matchGroups"></div>
-            <button class="btn" id="exportAllBtn" style="background: linear-gradient(135deg, #e74c3c, #c0392b); font-size: 1.1em;">Export ALL Match Groups to a Single Workbook</button>
+            <button class="btn" id="exportAllBtn" style="background: linear-gradient(135deg, #e74c3c, #c0392b); font-size: 1.1em; margin-top: 20px; display: none;">Export ALL Match Groups to a Single Workbook</button>
         </div>
     </div>
 
@@ -156,6 +251,10 @@
         let allMatches = [];  
         let matchingWorker = null; 
         let selectedSheets = []; 
+        
+        let uniqueSheetData = null;      
+        let duplicateRowsData = null;    
+        let removedDuplicatesCount = 0; 
 
         // --- UI Element Selectors ---
         const fileInput = document.getElementById('fileInput');
@@ -163,23 +262,50 @@
         const results = document.getElementById('results');
         const progress = document.getElementById('progress');
         const matchBtn = document.getElementById('matchBtn');
+        const dedupeBtn = document.getElementById('dedupeBtn');
         const fuzzyMatch = document.getElementById('fuzzyMatch');
         const fuzzyOptions = document.getElementById('fuzzyOptions');
         const removeDuplicates = document.getElementById('removeDuplicates');
+        const dedupeSourceSheets = document.getElementById('dedupeSourceSheets');
+        const robustExactMatch = document.getElementById('robustExactMatch'); // NEW
         const sheetSelectorDiv = document.getElementById('sheetSelector');
         const selectionStatus = document.getElementById('selectionStatus');
         const exportAllBtn = document.getElementById('exportAllBtn');
+        const dedupeControls = document.getElementById('dedupeControls');
+        const matchControls = document.getElementById('matchControls');
+        const resultsInfo = document.getElementById('resultsInfo');
+        
+        // NEW TARGETED MATCH SELECTORS
+        const targetedMatchControls = document.getElementById('targetedMatchControls');
+        const column1Selector = document.getElementById('column1Selector');
+        const column2Selector = document.getElementById('column2Selector');
+        const targetedMatchBtn = document.getElementById('targetedMatchBtn');
+        
+        // GLOBAL FILTER SELECTORS (UPDATED)
+        const groupFiltersDiv = document.getElementById('groupFilters');
+        const headerSelector = document.getElementById('headerSelector'); 
+        const minMatchesInput = document.getElementById('minMatches');
+        const maxMatchesInput = document.getElementById('maxMatches');
+        const filterFuzzyCheckbox = document.getElementById('filterFuzzy');
 
         // --- Event Listeners ---
         fileInput.addEventListener('change', handleFile);
         fuzzyMatch.addEventListener('change', () => {
             fuzzyOptions.style.display = fuzzyMatch.checked ? 'block' : 'none';
         });
-        matchBtn.addEventListener('click', startWorkerMatching);
-        exportAllBtn.addEventListener('click', exportResults);
-
-        // Function to bind individual export buttons dynamically
-        window.exportMatchGroup = exportMatchGroup;
+        
+        // UPDATED MATCHING BUTTON LISTENERS 
+        matchBtn.addEventListener('click', () => startMatching(false)); // Exhaustive Mode
+        targetedMatchBtn.addEventListener('click', () => startMatching(true)); // Targeted Mode
+        
+        exportAllBtn.addEventListener('click', () => exportResults(allMatches)); 
+        dedupeBtn.addEventListener('click', startDeduplication); 
+        
+        // GLOBAL FILTER EVENT LISTENERS
+        headerSelector.addEventListener('change', filterAndDisplayResults); 
+        minMatchesInput.addEventListener('input', filterAndDisplayResults);
+        maxMatchesInput.addEventListener('input', filterAndDisplayResults);
+        filterFuzzyCheckbox.addEventListener('change', filterAndDisplayResults);
 
 
         // --- Helper Functions ---
@@ -192,40 +318,127 @@
             progressText.textContent = text;
         }
 
+        function populateColumnSelectors() {
+            if (selectedSheets.length !== 2) return;
+            
+            const [sheet1Name, sheet2Name] = selectedSheets;
+            
+            // Update Labels
+            document.getElementById('col1Label').textContent = `${sheet1Name} Column (to search)`;
+            document.getElementById('col2Label').textContent = `${sheet2Name} Column(s) (to match against)`;
+
+            const headers1 = sheetData[sheet1Name][0] || [];
+            const headers2 = sheetData[sheet2Name][0] || [];
+
+            // Clear and Populate Column 1 Selector
+            column1Selector.innerHTML = '';
+            headers1.forEach((header, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${header || 'Col ' + (index + 1)}`;
+                column1Selector.appendChild(option);
+            });
+            
+            // Clear and Populate Column 2 Selector
+            // Add the "Match against all columns" option first
+            column2Selector.innerHTML = '';
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = `--- Match against ALL ${headers2.length} Columns ---`;
+            column2Selector.appendChild(allOption);
+            
+            headers2.forEach((header, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${header || 'Col ' + (index + 1)}`;
+                column2Selector.appendChild(option);
+            });
+        }
+        
         function updateSelectionStatus() {
-            if (selectedSheets.length === 2) {
+            results.style.display = 'none'; 
+            exportAllBtn.style.display = 'none'; 
+            matchControls.style.display = 'none';
+            dedupeControls.style.display = 'none';
+            groupFiltersDiv.style.display = 'none'; 
+            targetedMatchControls.style.display = 'none';
+            
+            // Clear prior single-sheet results
+            uniqueSheetData = null;
+            duplicateRowsData = null;
+
+            if (selectedSheets.length === 1) {
+                const sheetName = selectedSheets[0];
+                selectionStatus.innerHTML = `**Mode:** **Deduplication** on <span class="tab-badge">${sheetName}</span>. Ready to clean data.`;
+                dedupeControls.style.display = 'block';
+                resultsInfo.textContent = '⚠️ Only the first 1,000 unique rows will be displayed below. All unique rows are included in the exported file.';
+
+            } else if (selectedSheets.length === 2) {
                 const [sheet1Name, sheet2Name] = selectedSheets;
-                selectionStatus.innerHTML = `**Comparing:** <span class="tab-badge">${sheet1Name}</span> vs <span class="tab-badge">${sheet2Name}</span>`;
+                selectionStatus.innerHTML = `**Mode:** **Comparison** between <span class="tab-badge">${sheet1Name}</span> vs <span class="tab-badge">${sheet2Name}</span>.`;
+                matchControls.style.display = 'block';
                 matchBtn.disabled = false;
-                matchBtn.textContent = 'Find All Potential Matches';
+                matchBtn.textContent = 'Find All Potential Matches (Exhaustive)';
+                targetedMatchBtn.disabled = false; // Enable targeted button
+                targetedMatchControls.style.display = 'block'; // Show targeted controls
+                resultsInfo.textContent = '⚠️ Only the first **1,000** rows/matches will be displayed below. All results are included in the exported files.';
+                
+                populateColumnSelectors();
+
             } else {
-                selectionStatus.textContent = `Please select exactly two sheets to compare. (Selected: ${selectedSheets.length})`;
+                selectionStatus.textContent = `Please select one sheet for deduplication or two for comparison. (Selected: ${selectedSheets.length})`;
+                matchControls.style.display = 'block';
                 matchBtn.disabled = true;
-                matchBtn.textContent = 'Find All Potential Matches';
+                targetedMatchBtn.disabled = true;
+                matchBtn.textContent = 'Find All Potential Matches (Exhaustive)';
             }
         }
 
         function toggleSheetSelection(sheetName, element) {
             const index = selectedSheets.indexOf(sheetName);
+            
+            document.querySelectorAll('.sheet-option').forEach(el => el.classList.remove('selected'));
+            
             if (index > -1) {
-                selectedSheets.splice(index, 1);
-                element.classList.remove('selected');
-            } else if (selectedSheets.length < 2) {
+                selectedSheets = [];
+            } else if (selectedSheets.length === 0) {
                 selectedSheets.push(sheetName);
-                element.classList.add('selected');
-            } else {
-                alert("Please select exactly two sheets for comparison.");
+            } else if (selectedSheets.length === 1) {
+                if (selectedSheets[0] !== sheetName) {
+                    selectedSheets.push(sheetName);
+                } else {
+                    selectedSheets = []; 
+                }
+            } else if (selectedSheets.length === 2) {
+                selectedSheets = [sheetName]; 
             }
+            
+            selectedSheets.forEach(sName => {
+                const el = document.querySelector(`.sheet-option[data-sheet-name="${sName}"]`);
+                if(el) el.classList.add('selected');
+            });
+
             updateSelectionStatus();
         }
 
         // --- File Handling (Main Thread Parsing) ---
         function handleFile(e) {
             const file = e.target.files[0];
-            if (!file) return;
+            
+            // LOG 1: File selection check
+            console.log("LOG 1: handleFile triggered.");
+            if (!file) {
+                console.warn("LOG: No file selected.");
+                return;
+            }
 
+            // LOG 2: File details
+            console.log(`LOG 2: Selected file: ${file.name}, Size: ${(file.size / 1024).toFixed(2)} KB, Type: ${file.type}`);
+
+            // Reset state
             selectedSheets = [];
             matchBtn.disabled = true;
+            targetedMatchBtn.disabled = true;
             results.style.display = 'none';
             progress.style.display = 'block';
             controls.style.display = 'none';
@@ -234,50 +447,333 @@
             const reader = new FileReader();
             
             reader.onload = function(event) {
+                // LOG 3: FileReader onload event fired.
+                console.log("LOG 3: FileReader onload event fired. Data is now available in memory (ArrayBuffer).");
                 try {
                     updateProgress(40, 'Parsing Excel file...');
                     
                     const data = new Uint8Array(event.target.result);
+                    
+                    // LOG 4: Before XLSX.read
+                    console.log("LOG 4: Attempting XLSX.read (synchronous parse) using data of length:", data.length);
                     workbook = XLSX.read(data, { type: 'array' }); 
+                    
+                    // LOG 5: After XLSX.read
+                    console.log("LOG 5: XLSX.read completed. Workbook object created.");
                     
                     sheetData = {};
                     sheetSelectorDiv.innerHTML = '';
+                    
+                    // Critical check: Ensure sheets were loaded
+                    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                        console.error("LOG: No sheets found in workbook.", workbook);
+                         throw new Error("No readable sheets found in the file. File may be empty or corrupted.");
+                    }
+                    
+                    // LOG 6: Sheet list
+                    console.log(`LOG 6: Workbook contains ${workbook.SheetNames.length} sheets: ${workbook.SheetNames.join(', ')}`);
+
 
                     for(const sheetName of workbook.SheetNames) {
-                        sheetData[sheetName] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+                        // Robust read with formatting to ensure clean string data
+                        const sheetAsJson = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { 
+                            header: 1, 
+                            defval: '', 
+                            raw: false, 
+                            dateNF: 'YYYY-MM-DD HH:MM:SS' 
+                        }); 
+                        
+                        sheetData[sheetName] = sheetAsJson;
+
+                        // LOG 7: Sheet processing status
+                        console.log(`LOG 7: Sheet '${sheetName}' parsed into ${sheetData[sheetName].length} rows (including header).`);
 
                         const sheetBtn = document.createElement('div');
                         sheetBtn.className = 'sheet-option';
                         sheetBtn.textContent = sheetName;
+                        sheetBtn.setAttribute('data-sheet-name', sheetName); 
                         sheetBtn.onclick = () => toggleSheetSelection(sheetName, sheetBtn);
                         sheetSelectorDiv.appendChild(sheetBtn);
                     }
                     
                     updateProgress(100, `Successfully loaded ${workbook.SheetNames.length} sheets. Ready to select tabs.`);
+                    console.log("LOG 8: All sheets processed. UI update starting.");
                     
                     setTimeout(() => { 
                         progress.style.display = 'none';
                         controls.style.display = 'block';
                         updateSelectionStatus();
                     }, 100);
+                    
                 } catch (error) {
+                    // LOG 9: Error catching
+                    console.error("LOG 9: File processing error caught:", error);
                     progress.style.display = 'none';
-                    alert('Error reading or parsing file. Please check file format and corruption: ' + error.message);
-                    matchBtn.disabled = true;
+                    controls.style.display = 'block'; // Show controls so they can re-upload
+                    alert('Error reading or parsing file: ' + error.message + '\n\nCheck the console (F12) for detailed LOG messages and the full stack trace.');
+                    matchBtn.disabled = true; 
+                    targetedMatchBtn.disabled = true;
+                    // Reset sheet selector to be safe
+                    sheetSelectorDiv.innerHTML = ''; 
+                    selectionStatus.textContent = 'File Load Failed. Please choose a new file.';
                 }
             };
 
+            // LOG 10: Before reader.readAsArrayBuffer
+            console.log("LOG 10: Calling reader.readAsArrayBuffer. This triggers the asynchronous file read.");
             reader.readAsArrayBuffer(file);
         }
+        // --- END REPAIRED FILE HANDLING WITH LOGGING ---
+
+
+        // ---------------------------------------------
+        // --- DEDUPLICATION MODE LOGIC (Main Thread) ---
+        // ---------------------------------------------
+
+        function startDeduplication() {
+            if (selectedSheets.length !== 1) return;
+
+            const sheetName = selectedSheets[0];
+            const originalSheet = sheetData[sheetName];
+            if (!originalSheet || originalSheet.length < 2) {
+                alert(`Sheet '${sheetName}' is empty or has no data rows.`);
+                return;
+            }
+
+            results.style.display = 'none';
+            progress.style.display = 'block';
+            updateProgress(5, `Starting deduplication on sheet: ${sheetName}...`);
+
+            const headers = originalSheet[0];
+            const dataRows = originalSheet.slice(1);
+
+            const seenRows = new Set();
+            const uniqueRows = [];
+            const duplicateRows = [];
+            removedDuplicatesCount = 0;
+
+            for (let i = 0; i < dataRows.length; i++) {
+                const row = dataRows[i];
+                // Since data is now loaded as strings (including dates), the key is robust
+                const rowKey = JSON.stringify(row.map(cell => String(cell).trim()));
+
+                if (seenRows.has(rowKey)) {
+                    duplicateRows.push(row);
+                    removedDuplicatesCount++;
+                } else {
+                    seenRows.add(rowKey);
+                    uniqueRows.push(row);
+                }
+                
+                if (i % 1000 === 0) {
+                    updateProgress(5 + (i / dataRows.length) * 90, `Processing row ${i} of ${dataRows.length}. Found ${removedDuplicatesCount} duplicates.`);
+                }
+            }
+
+            uniqueSheetData = [headers, ...uniqueRows];
+            duplicateRowsData = [headers, ...duplicateRows];
+            
+            updateProgress(100, `Deduplication complete! Removed ${removedDuplicatesCount} duplicate rows.`);
+
+            setTimeout(() => {
+                progress.style.display = 'none';
+                displayDeduplicationResults(sheetName, uniqueRows, duplicateRows, headers);
+            }, 500);
+        }
+
+        function displayDeduplicationResults(sheetName, uniqueRows, duplicateRows, headers) {
+            const statsDiv = document.getElementById('stats');
+            const matchGroupsDiv = document.getElementById('matchGroups');
+            
+            results.style.display = 'block';
+            groupFiltersDiv.style.display = 'none'; 
+            
+            statsDiv.innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-value">${sheetData[sheetName].length - 1}</div>
+                    <div class="stat-label">Original Row Count</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${uniqueRows.length}</div>
+                    <div class="stat-label">Unique Rows Remaining</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${removedDuplicatesCount}</div>
+                    <div class="stat-label">Duplicate Rows Removed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${sheetName}</div>
+                    <div class="stat-label">Sheet Processed</div>
+                </div>
+            `;
+            
+            matchGroupsDiv.innerHTML = '';
+            const DISPLAY_LIMIT = 1000;
+
+
+            // --- Section 1: Unique Rows ---
+            const uniqueGroupDiv = document.createElement('div');
+            uniqueGroupDiv.className = 'match-group';
+
+            uniqueGroupDiv.innerHTML = `
+                <div class="match-header">
+                    <div class="dedupe-group-title">✅ Unique Data Result</div>
+                    <button class="btn export-btn" onclick="window.exportUniqueSheet('${sheetName}')">Download Unique Data (${uniqueRows.length} rows)</button>
+                </div>
+                <div class="match-info" id="dedupeInfo">
+                    Displaying **${Math.min(uniqueRows.length, DISPLAY_LIMIT)}** of the **${uniqueRows.length}** unique rows found.
+                </div>
+                <div class="table-container">
+                    <table>${generateDedupeTable(uniqueRows, headers, sheetName, DISPLAY_LIMIT)}</table>
+                </div>
+            `;
+            matchGroupsDiv.appendChild(uniqueGroupDiv);
+
+
+            // --- Section 2: Removed Duplicates ---
+            if (duplicateRows.length > 0) {
+                const duplicateGroupDiv = document.createElement('div');
+                duplicateGroupDiv.className = 'match-group';
+
+                duplicateGroupDiv.innerHTML = `
+                    <div class="match-header" style="border-top: 2px solid #e74c3c;">
+                        <div class="dedupe-group-title" style="color: #ff9900;">🗑️ Removed Duplicate Rows</div>
+                        <button class="btn export-btn duplicate-export" onclick="window.exportDuplicateRows('${sheetName}')">Download ${duplicateRows.length} Duplicated Rows</button>
+                    </div>
+                    <div class="match-info" id="duplicateInfo">
+                        Displaying **${Math.min(duplicateRows.length, DISPLAY_LIMIT)}** of the **${duplicateRows.length}** duplicate rows removed.
+                    </div>
+                    <div class="table-container">
+                        <table>${generateDedupeTable(duplicateRows, headers, sheetName, DISPLAY_LIMIT)}</table>
+                    </div>
+                `;
+                matchGroupsDiv.appendChild(duplicateGroupDiv);
+            }
+        }
+
+        function generateDedupeTable(rows, headers, sheetName, limit) {
+            let html = '<thead><tr>';
+            headers.forEach((h, i) => { html += `<th>${sheetName}: ${h || 'Col ' + (i + 1)}</th>`; });
+            html += '</tr></thead><tbody>';
+
+            for (let i = 0; i < Math.min(rows.length, limit); i++) {
+                const row = rows[i];
+                html += '<tr>';
+                // Cell content is now already a string, including formatted dates
+                row.forEach(cell => {
+                    html += `<td>${cell || ''}</td>`;
+                });
+                html += '</tr>';
+            }
+
+            html += '</tbody>';
+            return html;
+        }
+
+        function exportUniqueSheet(sheetName) {
+            if (!uniqueSheetData) {
+                alert("No unique data is available for export.");
+                return;
+            }
+
+            const newWb = XLSX.utils.book_new();
+            // Export the formatted strings
+            const ws = XLSX.utils.aoa_to_sheet(uniqueSheetData);
+            
+            const cleanSheetName = sheetName.replace(/[^a-zA-Z0-9]/g, '');
+            const fileName = `Deduplicated_${cleanSheetName}_UNIQUE.xlsx`.substring(0, 100);
+            
+            XLSX.utils.book_append_sheet(newWb, ws, 'Unique Data');
+
+            XLSX.writeFile(newWb, fileName);
+        }
         
-        // --- Web Worker Setup and Main Thread Communication ---
+        function exportDuplicateRows(sheetName) {
+            if (!duplicateRowsData || duplicateRowsData.length <= 1) {
+                alert("No duplicate data was found for export.");
+                return;
+            }
+
+            const newWb = XLSX.utils.book_new();
+            // Export the formatted strings
+            const ws = XLSX.utils.aoa_to_sheet(duplicateRowsData);
+            
+            const cleanSheetName = sheetName.replace(/[^a-zA-Z0-9]/g, '');
+            const fileName = `Deduplicated_${cleanSheetName}_DUPLICATES.xlsx`.substring(0, 100);
+            
+            XLSX.utils.book_append_sheet(newWb, ws, 'Duplicate Rows');
+
+            XLSX.writeFile(newWb, fileName);
+        }
+
+        // --- Pre-Cleaning Function for Source Sheets ---
+        function preCleanComparisonData(originalData) {
+            const headers = originalData[0];
+            const dataRows = originalData.slice(1);
+            
+            const seenRows = new Set();
+            const cleanedRows = [];
+            const originalRowMap = {}; // Maps 0-based index of CLEANED DATA to 1-based index of ORIGINAL DATA (after header)
+
+            for (let i = 0; i < dataRows.length; i++) {
+                const originalRowIndex = i + 1; // 1-based index for the actual data row (after header)
+                const row = dataRows[i];
+                const rowKey = JSON.stringify(row.map(cell => String(cell).trim()));
+
+                if (seenRows.has(rowKey)) {
+                    // Do nothing for duplicates
+                } else {
+                    seenRows.add(rowKey);
+                    cleanedRows.push(row);
+                    // Map the index of the newly added clean row (0-based) to its original sheet row index (1-based)
+                    originalRowMap[cleanedRows.length - 1] = originalRowIndex; 
+                }
+            }
+            
+            return {
+                cleanedData: [headers, ...cleanedRows],
+                originalRowMap: originalRowMap,
+                duplicatesRemoved: dataRows.length - cleanedRows.length
+            };
+        }
+
+
+        // ---------------------------------------------
+        // --- COMPARISON MODE LOGIC (Web Worker) ---
+        // ---------------------------------------------
 
         function setupWorker() {
             const workerScript = `
                 // --- UTILITY FUNCTIONS (Must be defined inside the worker) ---
+
+                // Aggressive normalization (only letters and numbers, now character order-independent)
+                function normalizeKey(val) {
+                    // 1. Convert to string, lowercase, and remove non-alphanumeric
+                    const cleaned = String(val || '')
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]/g, '')
+                        .trim();
+                    
+                    // 2. Sort the characters to make it order-independent
+                    return cleaned.split('').sort().join('');
+                }
+
+                // Standard normalization (lowercase, trim, preserves symbols/spaces)
+                function standardKey(val) {
+                    return String(val || '').toLowerCase().trim();
+                }
+
+                // Function to select the appropriate key based on the option
+                function getComparisonKey(val, useRobust) {
+                    // If robust is enabled, we use the aggressive key
+                    // Otherwise, we use the standard key
+                    return useRobust ? normalizeKey(val) : standardKey(val);
+                }
+
                 function levenshteinDistance(str1, str2) {
-                    const s1 = String(str1 || '').toLowerCase().trim();
-                    const s2 = String(str2 || '').toLowerCase().trim();
+                    // These strings are already standardized via standardKey() (toLowerCase.trim())
+                    const s1 = str1;
+                    const s2 = str2;
                     
                     const matrix = [];
                     for (let i = 0; i <= s2.length; i++) { matrix[i] = [i]; }
@@ -286,6 +782,9 @@
                     for (let i = 1; i <= s2.length; i++) {
                         for (let j = 1; j <= s1.length; j++) {
                             if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+                                matrix[i][j] = matrix[i - 1][j - 1];
+                            }
+                                else if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
                                 matrix[i][j] = matrix[i - 1][j - 1];
                             } else {
                                 matrix[i][j] = Math.min(
@@ -299,146 +798,181 @@
                     return matrix[s2.length][s1.length];
                 }
 
+                // isMatch is ONLY used for Levenshtein (Fuzzy) comparison.
                 function isMatch(val1, val2, useFuzzy, threshold) {
-                    const str1 = String(val1 || '').trim();
-                    const str2 = String(val2 || '').trim();
+                    
+                    if (!useFuzzy) return { isMatch: false, isFuzzy: false };
+                    
+                    // Use the standard key for Levenshtein distance calculation 
+                    const str1 = standardKey(val1); 
+                    const str2 = standardKey(val2); 
 
-                    if (!str1 || !str2) return false;
-                    if (str1 === str2) return true;
-                    if (!useFuzzy) return false;
+                    if (!str1 || !str2) return { isMatch: false, isFuzzy: false };
                     
                     const maxLen = Math.max(str1.length, str2.length);
-                    
-                    if (maxLen === 0) return true; 
+                    // Handle edge case where maxLen is 0 (should be caught by key check, but safety)
+                    if (maxLen === 0) return { isMatch: true, isFuzzy: false }; 
 
                     const maxAllowedDistance = Math.floor(maxLen * (threshold / 100));
 
+                    // Optimization: if length difference is too high, skip distance calculation
                     if (Math.abs(str1.length - str2.length) > maxAllowedDistance) {
-                        return false;
+                        return { isMatch: false, isFuzzy: false };
                     }
 
                     const distance = levenshteinDistance(str1, str2);
                     
-                    return distance <= maxAllowedDistance; 
+                    if (distance <= maxAllowedDistance) {
+                        // The match is fuzzy, as the exact/robust check failed already
+                        return { isMatch: true, isFuzzy: true }; 
+                    }
+                    
+                    return { isMatch: false, isFuzzy: false };
                 }
                 
                 // --- CORE MATCHING LOGIC (All Columns) ---
                 
-                function findMatchesInColumns(sheet1, sheet2, col1, col2, useFuzzy, threshold) {
+                function findMatchesInColumns(sheet1, sheet2, col1, col2, useFuzzy, threshold, robustExactMatch) {
                     const matches = [];
+                    // row1Data/row2Data are the data rows (excluding header), 0-indexed relative to data rows
                     const row1Data = sheet1.slice(1); 
                     const row2Data = sheet2.slice(1); 
+                    let groupHasFuzzy = false; 
 
-                    // Build a map of keys for the second sheet for fast lookup
+                    // keyMap2 stores the comparison key (robust or standard) to its list of row details
                     const keyMap2 = new Map();
                     for (let j = 0; j < row2Data.length; j++) {
-                        const val = String(row2Data[j][col2] || '').trim();
-                        if (!val) continue;
-                        if (!keyMap2.has(val)) {
-                            keyMap2.set(val, []);
+                        const val = row2Data[j][col2]; 
+                        const key = getComparisonKey(val, robustExactMatch); // <--- Use conditional key
+                        if (!key) continue;
+                        
+                        if (!keyMap2.has(key)) {
+                            keyMap2.set(key, []);
                         }
-                        // Store original row index + 1 (for header compensation)
-                        keyMap2.get(val).push(j + 1); 
+                        // Store the original row index (1-based) and the original value for display/fuzzy check
+                        keyMap2.get(key).push({ rowIndex: j + 1, originalValue: val }); 
                     }
 
+                    // A set to track row pairs already matched by the exact/robust exact check
+                    const matchedExactly = new Set(); 
+
                     for (let i = 0; i < row1Data.length; i++) {
-                        const val1 = String(row1Data[i][col1] || '').trim();
-                        if (!val1) continue;
+                        const val1 = row1Data[i][col1];
+                        const key1 = getComparisonKey(val1, robustExactMatch); // <--- Use conditional key for lookup
+                        if (!key1) continue;
                         
-                        // 1. Exact Match Lookup
-                        if (keyMap2.has(val1)) {
-                            for (const row2Index of keyMap2.get(val1)) {
-                                // Add match (row index + 1 for header compensation)
-                                matches.push({ 
-                                    row1: i + 1, 
-                                    row2: row2Index, 
-                                    val1: val1, 
-                                    val2: val1, 
-                                    data1: row1Data[i], 
-                                    data2: row2Data[row2Index - 1] 
-                                });
+                        const row1Index = i + 1; 
+
+                        // 1. Exact Match Lookup (using the robust or standard normalized key)
+                        if (keyMap2.has(key1)) {
+                            for (const entry of keyMap2.get(key1)) {
+                                const row2Index = entry.rowIndex;
+                                
+                                const pairKey = \`\${row1Index}-\${row2Index}\`;
+                                if (!matchedExactly.has(pairKey)) { // Check for duplicates in map if multiple rows map to same key
+                                    // Add the match (isFuzzy: false)
+                                    matches.push({ 
+                                        row1: row1Index, 
+                                        row2: row2Index, 
+                                        val1: val1, // Original value for display
+                                        val2: entry.originalValue, // Original value for display
+                                        data1: row1Data[i], 
+                                        data2: row2Data[row2Index - 1],
+                                        isFuzzy: false 
+                                    });
+                                    
+                                    // Mark this pair as matched exactly
+                                    matchedExactly.add(pairKey);
+                                }
                             }
-                            if (!useFuzzy) continue;
                         }
 
                         // 2. Fuzzy Match (If enabled)
                         if (useFuzzy) {
-                            for (const [key2, row2Indices] of keyMap2.entries()) {
-                                if (isMatch(val1, key2, useFuzzy, threshold)) {
-                                    // Prevent double-counting if the key was already caught in the exact match block AND they are exactly the same
-                                    if (val1 !== key2 || !keyMap2.has(val1)) { 
-                                        for (const row2Index of row2Indices) {
-                                             matches.push({ 
-                                                row1: i + 1, 
-                                                row2: row2Index, 
-                                                val1: val1, 
-                                                val2: key2, 
-                                                data1: row1Data[i], 
-                                                data2: row2Data[row2Index - 1] 
-                                            });
-                                        }
+                             // Iterate through all entries to check for fuzzy matches
+                            for (const [_, row2Entries] of keyMap2.entries()) {
+                                for (const entry of row2Entries) {
+                                    const row2Index = entry.rowIndex;
+                                    const pairKey = \`\${row1Index}-\${row2Index}\`;
+                                    
+                                    // Skip if already found in the exact/robust exact match
+                                    if (matchedExactly.has(pairKey)) {
+                                        continue;
+                                    }
+
+                                    const matchResult = isMatch(val1, entry.originalValue, useFuzzy, threshold);
+                                    
+                                    if (matchResult.isMatch && matchResult.isFuzzy) { 
+                                        matches.push({ 
+                                            row1: row1Index, 
+                                            row2: row2Index, 
+                                            val1: val1, 
+                                            val2: entry.originalValue, 
+                                            data1: row1Data[i], 
+                                            data2: row2Data[row2Index - 1],
+                                            isFuzzy: true 
+                                        });
+                                        groupHasFuzzy = true; 
                                     }
                                 }
                             }
                         }
                     }
 
-                    return matches;
+                    return { matches: matches, hasFuzzy: groupHasFuzzy }; 
                 }
 
                 // --- Worker Event Handler (Full Sheet Comparison) ---
                 self.onmessage = function(e) {
                     try {
-                        const { sheetData, selectedSheetNames, params } = e.data; 
-                        const { useFuzzy, fuzzyThreshold, removeDuplicates } = params;
+                        const { sheetData, originalMaps, selectedSheetNames, params } = e.data; 
+                        const { useFuzzy, fuzzyThreshold, removeDuplicates, isTargeted, col1Index, col2Index, robustExactMatch } = params; // NEW PARAMETER
                         
                         const tab1 = selectedSheetNames[0];
                         const tab2 = selectedSheetNames[1];
 
-                        const info1 = { 
-                            sheet: sheetData[tab1],
-                            headers: sheetData[tab1][0] || [],
-                        };
-                        const info2 = { 
-                            sheet: sheetData[tab2],
-                            headers: sheetData[tab2][0] || [],
-                        };
+                        const info1 = { sheet: sheetData[tab1], headers: sheetData[tab1][0] || [] };
+                        const info2 = { sheet: sheetData[tab2], headers: sheetData[tab2][0] || [] };
                         
                         const numCols1 = info1.headers.length || (info1.sheet.length > 1 ? info1.sheet[1].length : 0);
                         const numCols2 = info2.headers.length || (info2.sheet.length > 1 ? info2.sheet[1].length : 0);
-                        const totalComparisons = numCols1 * numCols2;
                         
-                        self.postMessage({ 
-                            type: 'progress', 
-                            percent: 15, 
-                            text: \`Worker: Ready to analyze \${totalComparisons} column combinations...\` 
-                        });
+                        // DETERMINE LOOPS BASED ON MODE
+                        const loopCol1 = isTargeted ? [col1Index] : Array.from({ length: numCols1 }, (_, i) => i);
+                        const loopCol2 = (isTargeted && col2Index !== 'all') 
+                                         ? [parseInt(col2Index)] 
+                                         : Array.from({ length: numCols2 }, (_, i) => i);
+                        
+                        const totalComparisons = loopCol1.length * loopCol2.length;
+                        
+                        self.postMessage({ type: 'progress', percent: 15, text: \`Worker: Ready to analyze \${totalComparisons} column combinations...\` });
 
                         let allMatches = [];
                         let completedComparisons = 0;
                         let matchesFound = 0;
                         
-                        for (let col1 = 0; col1 < numCols1; col1++) {
-                            for (let col2 = 0; col2 < numCols2; col2++) {
+                        for (const col1 of loopCol1) {
+                            for (const col2 of loopCol2) {
                                 
-                                // Skip comparison of the exact same column in the same tab
                                 if (tab1 === tab2 && col1 === col2) { 
                                     completedComparisons++;
                                     continue;
                                 }
 
-                                let matches = findMatchesInColumns(
+                                let matchResult = findMatchesInColumns(
                                     info1.sheet, info2.sheet, col1, col2, 
-                                    useFuzzy, fuzzyThreshold
+                                    useFuzzy, fuzzyThreshold, robustExactMatch // Pass new parameter
                                 );
                                 
-                                // --- DEDUPLICATION LOGIC ---
+                                let matches = matchResult.matches;
+                                let hasFuzzy = matchResult.hasFuzzy; 
+
+                                // --- CROSS-SHEET DEDUPLICATION LOGIC ---
                                 if (removeDuplicates) {
                                     const uniqueMatches = [];
                                     const seen = new Set();
                                     
                                     for (const match of matches) {
-                                        // Key is a composite of the two row indices (ensures each row pair is only listed once)
                                         const key = \`\${match.row1}-\${match.row2}\`; 
                                         
                                         if (!seen.has(key)) {
@@ -459,7 +993,8 @@
                                         header2: info2.headers[col2] || 'Col ' + (col2 + 1),
                                         matches,
                                         headers1: info1.headers,
-                                        headers2: info2.headers
+                                        headers2: info2.headers,
+                                        hasFuzzyMatches: hasFuzzy 
                                     });
                                     matchesFound += matches.length;
                                 }
@@ -477,6 +1012,29 @@
                                 }
                             }
                         }
+                        
+                        // --- Map Cleaned Row Index back to Original Row Index ---
+                        for (const group of allMatches) {
+                            for (const match of group.matches) {
+                                // The rowX properties are 1-based index in the CLEANED data.
+                                // The map keys are the 0-based index of the CLEANED data rows (index: match.rowX - 1).
+                                
+                                if (originalMaps[tab1]) {
+                                    match.originalRow1 = originalMaps[tab1][match.row1 - 1]; 
+                                } else {
+                                    // If not cleaned, original row is the same as the current row (1-based index)
+                                    match.originalRow1 = match.row1;
+                                }
+                                
+                                if (originalMaps[tab2]) {
+                                    match.originalRow2 = originalMaps[tab2][match.row2 - 1];
+                                } else {
+                                    match.originalRow2 = match.row2;
+                                }
+                            }
+                        }
+                        // --- END MAPPING ---
+
 
                         self.postMessage({ type: 'result', allMatches: allMatches });
                     } catch (error) {
@@ -504,13 +1062,15 @@
                     
                     setTimeout(() => {
                         progress.style.display = 'none';
-                        displayResults();
+                        displayResultsSummary(); 
                         matchBtn.disabled = false;
+                        targetedMatchBtn.disabled = false;
                         if (matchingWorker) matchingWorker.terminate();
                     }, 500);
                 } else if (data.type === 'error') { 
                     alert('Worker Error: ' + data.message + '\n\nFull Details (check console for better formatting): \n' + data.stack);
                     matchBtn.disabled = false;
+                    targetedMatchBtn.disabled = false;
                     progress.style.display = 'none';
                     if (matchingWorker) matchingWorker.terminate();
                 }
@@ -520,45 +1080,147 @@
                 console.error("Worker error:", e);
                 alert('A fatal error occurred in the background worker. Check the console for details.');
                 matchBtn.disabled = false;
+                targetedMatchBtn.disabled = false;
                 progress.style.display = 'none';
             };
         }
 
-        // --- Main Thread Dispatcher ---
-        function startWorkerMatching() {
+        // NEW unified function for both modes
+        function startMatching(isTargeted) {
             if (selectedSheets.length !== 2) {
                 alert('Please select exactly two sheets to compare.');
                 return;
             }
 
             matchBtn.disabled = true;
+            targetedMatchBtn.disabled = true;
             progress.style.display = 'block';
             results.style.display = 'none';
             
             setupWorker();
             
+            const dedupeEnabled = dedupeSourceSheets.checked;
+
+            let clean1 = { cleanedData: sheetData[selectedSheets[0]], originalRowMap: null, duplicatesRemoved: 0 };
+            let clean2 = { cleanedData: sheetData[selectedSheets[1]], originalRowMap: null, duplicatesRemoved: 0 };
+
+            if (dedupeEnabled) {
+                clean1 = preCleanComparisonData(sheetData[selectedSheets[0]]);
+                clean2 = preCleanComparisonData(sheetData[selectedSheets[1]]);
+            }
+
             const params = {
                 useFuzzy: fuzzyMatch.checked,
                 fuzzyThreshold: parseInt(document.getElementById('fuzzyThreshold').value),
-                removeDuplicates: removeDuplicates.checked // Pass the new flag
+                removeDuplicates: removeDuplicates.checked,
+                robustExactMatch: robustExactMatch.checked, // PASS NEW PARAMETER
+                
+                // NEW MODE PARAMETERS
+                isTargeted: isTargeted, 
+                col1Index: isTargeted ? parseInt(column1Selector.value) : null,
+                col2Index: isTargeted ? column2Selector.value : null // 'all' or index string
             };
             
-            const filteredSheetData = {};
-            filteredSheetData[selectedSheets[0]] = sheetData[selectedSheets[0]];
-            filteredSheetData[selectedSheets[1]] = sheetData[selectedSheets[1]];
+            // Collect status for display
+            const statusText = [];
+            if (clean1.duplicatesRemoved > 0) statusText.push(`${selectedSheets[0]}: ${clean1.duplicatesRemoved} duplicates removed.`);
+            if (clean2.duplicatesRemoved > 0) statusText.push(`${selectedSheets[1]}: ${clean2.duplicatesRemoved} duplicates removed.`);
+            const statusPrefix = statusText.length > 0 ? `Sheets cleaned! ${statusText.join(' ')} ` : '';
+
+            const modeText = isTargeted ? 'Targeted Match' : 'Exhaustive Match';
+            updateProgress(10, `${statusPrefix}Worker started. Running ${modeText} between ${selectedSheets[0]} and ${selectedSheets[1]}...`);
 
 
             matchingWorker.postMessage({
-                sheetData: filteredSheetData,
+                // Send the potentially cleaned data
+                sheetData: {
+                    [selectedSheets[0]]: clean1.cleanedData,
+                    [selectedSheets[1]]: clean2.cleanedData
+                },
+                // Send the mapping for row tracing
+                originalMaps: {
+                    [selectedSheets[0]]: clean1.originalRowMap,
+                    [selectedSheets[1]]: clean2.originalRowMap
+                },
                 selectedSheetNames: selectedSheets,
                 params: params
             });
-            updateProgress(10, `Worker started. Comparing all columns between ${selectedSheets[0]} and ${selectedSheets[1]}...`);
         }
+        
+        // --- NEW FUNCTION: Populate the Header Dropdown ---
+        function populateHeaderSelector() {
+            const selector = document.getElementById('headerSelector');
+            selector.innerHTML = '<option value="all">--- Show All Column Pairs ---</option>'; // Reset
 
-        // --- DISPLAY/EXPORT LOGIC ---
+            const uniquePairs = new Set();
+            allMatches.forEach(group => {
+                // Key that holds the necessary info for filtering and display
+                const filterValue = `${group.tab1}|${group.col1}|${group.tab2}|${group.col2}`;
+                uniquePairs.add(filterValue);
+            });
 
-        function displayResults() {
+            // Prepare for sorting and display
+            const sortedPairs = Array.from(uniquePairs).map(filterValue => {
+                const parts = filterValue.split('|');
+                const tab1 = parts[0];
+                const col1 = parseInt(parts[1]);
+                const tab2 = parts[2];
+                const col2 = parseInt(parts[3]);
+                
+                // Get the actual header name from the sheetData using the column index
+                const header1 = sheetData[tab1][0][col1] || 'Col ' + (col1 + 1);
+                const header2 = sheetData[tab2][0][col2] || 'Col ' + (col2 + 1);
+                
+                const displayText = `${header1} ↔️ ${header2} (${tab1} vs ${tab2})`;
+                
+                return { filterValue, displayText };
+            }).sort((a, b) => a.displayText.localeCompare(b.displayText));
+
+            // Populate the selector
+            sortedPairs.forEach(pair => {
+                const option = document.createElement('option');
+                option.value = pair.filterValue;
+                option.textContent = pair.displayText;
+                selector.appendChild(option);
+            });
+        }
+        // --- END NEW FUNCTION ---
+
+
+        function filterAndDisplayResults() {
+            
+            const selectedHeaderPair = headerSelector.value; 
+            const minCount = parseInt(minMatchesInput.value) || 0;
+            const maxCount = parseInt(maxMatchesInput.value) || 9999999;
+            const showFuzzyOnly = filterFuzzyCheckbox.checked;
+
+            const filteredMatches = allMatches.filter(group => {
+                // 1. Match Count Filter
+                if (group.matches.length < minCount || group.matches.length > maxCount) {
+                    return false;
+                }
+                
+                // 2. Column Header Filter (Dropdown) 
+                if (selectedHeaderPair !== 'all') {
+                    // Create the filter key for the current group
+                    const groupFilterValue = `${group.tab1}|${group.col1}|${group.tab2}|${group.col2}`;
+                    if (groupFilterValue !== selectedHeaderPair) {
+                        return false;
+                    }
+                }
+
+                // 3. Fuzzy/Exact Match Toggle Filter
+                if (showFuzzyOnly && !group.hasFuzzyMatches) {
+                    return false;
+                }
+                
+                return true;
+            });
+
+            renderMatchGroups(filteredMatches);
+        }
+        
+        function displayResultsSummary() {
             const statsDiv = document.getElementById('stats');
             const totalMatches = allMatches.reduce((sum, group) => sum + group.matches.length, 0);
             const uniquePairs = allMatches.length;
@@ -578,40 +1240,81 @@
                 </div>
             `;
             
-            const DISPLAY_LIMIT = 1000; 
+            populateHeaderSelector(); 
+            groupFiltersDiv.style.display = 'block';
+            results.style.display = 'block';
+            exportAllBtn.style.display = 'block';
+            
+            // Initial render using global filters
+            filterAndDisplayResults(); 
+        }
 
+        function renderMatchGroups(matchesToRender) {
+            
             const matchGroupsDiv = document.getElementById('matchGroups');
             matchGroupsDiv.innerHTML = '';
-
-            if (allMatches.length === 0) {
-                 matchGroupsDiv.innerHTML = '<div class="info" style="background: #e74c3c;">❌ No matches found between the selected sheets for any column combination.</div>';
-                 exportAllBtn.style.display = 'none';
-            } else {
-                exportAllBtn.style.display = 'block';
+            
+            exportAllBtn.textContent = `Export ALL (${allMatches.length}) Match Groups to a Single Workbook`;
+            
+            if (matchesToRender.length === 0) {
+                 matchGroupsDiv.innerHTML = `<div class="info" style="background: #e74c3c;">❌ No match groups found matching the current filters.</div>`;
+                 return;
             }
             
-            allMatches.forEach((group, idx) => {
+            const DISPLAY_LIMIT = 1000; 
+            
+            matchesToRender.forEach((group, idx) => {
+                
+                // Find the original index for persistent filtering/export
+                const originalIndex = allMatches.findIndex(g => 
+                    g.tab1 === group.tab1 && g.col1 === group.col1 && g.tab2 === group.tab2 && g.col2 === group.col2
+                );
+
                 const groupDiv = document.createElement('div');
                 groupDiv.className = 'match-group';
+                groupDiv.setAttribute('data-original-index', originalIndex);
                 
                 const tabInfo = `<span class="tab-badge">${group.tab1}</span> ↔️ <span class="tab-badge">${group.tab2}</span>`;
                 
                 const displayCount = Math.min(group.matches.length, DISPLAY_LIMIT);
-                let infoText = `Found **${group.matches.length}** matching row${group.matches.length !== 1 ? 's' : ''}`;
-                if (group.matches.length > DISPLAY_LIMIT) {
+                
+                // Use the unfiltered total count for the export button, but update the info text
+                const unfilteredTotal = allMatches[originalIndex].matches.length;
+                let infoText = `Found **${unfilteredTotal}** matching row${unfilteredTotal !== 1 ? 's' : ''}`;
+                if (unfilteredTotal > DISPLAY_LIMIT) {
                     infoText += ` (Displaying first ${DISPLAY_LIMIT})`;
                 }
 
                 groupDiv.innerHTML = `
                     <div class="match-header">
-                        Match Group ${idx + 1}: ${tabInfo}
-                        <button class="btn export-btn" style="float: right;" onclick="exportMatchGroup(${idx})">Export This Match Group (${group.matches.length} rows)</button>
+                        <div class="dedupe-group-title">Match Group ${idx + 1}: ${tabInfo}</div>
+                        <button class="btn export-btn" onclick="window.exportMatchGroup(${originalIndex})">Export This Match Group (${unfilteredTotal} rows)</button>
                     </div>
-                    <div class="match-info">
+                    <div class="match-info" id="matchInfo_${originalIndex}">
                         Match Field: <strong>${group.header1}</strong> ↔️ <strong>${group.header2}</strong>
                         <br>${infoText}
                     </div>
-                    <div class="table-container">
+                    
+                    <div class="match-group-filters" style="padding: 10px 0; border-bottom: 1px solid #2a3f5f; margin-bottom: 15px;">
+                        <div style="display: flex; gap: 20px;">
+                            <div style="flex-grow: 1;">
+                                <label for="filterText_${originalIndex}">Full-Text Search in Rows</label>
+                                <input type="text" id="filterText_${originalIndex}" placeholder="Search all values (e.g., 'Smith', '2023')" 
+                                    oninput="window.filterAndRenderGroup(${originalIndex})">
+                            </div>
+                            <div style="width: 180px;">
+                                <label for="filterRow1_${originalIndex}">Filter by ${group.tab1} Row #</label>
+                                <input type="number" id="filterRow1_${originalIndex}" placeholder="e.g., 42" 
+                                    oninput="window.filterAndRenderGroup(${originalIndex})" min="1">
+                            </div>
+                             <div style="width: 180px;">
+                                <label for="filterRow2_${originalIndex}">Filter by ${group.tab2} Row #</label>
+                                <input type="number" id="filterRow2_${originalIndex}" placeholder="e.g., 99" 
+                                    oninput="window.filterAndRenderGroup(${originalIndex})" min="1">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container" id="tableContainer_${originalIndex}">
                         <table>
                             ${generateMatchTable(group, displayCount)}
                         </table>
@@ -620,14 +1323,92 @@
 
                 matchGroupsDiv.appendChild(groupDiv);
             });
+        }
+        
+        // Function to filter and re-render a single match group table
+        window.filterAndRenderGroup = function(groupIndex) {
+            const group = allMatches[groupIndex];
+            if (!group) return;
+            
+            // We apply filters against the complete set of matches stored in allMatches
+            const sourceMatches = allMatches[groupIndex].matches;
 
-            results.style.display = 'block';
+            // 1. Get filter values
+            const filterText = document.getElementById(`filterText_${groupIndex}`).value.toLowerCase().trim();
+            const filterRow1Input = document.getElementById(`filterRow1_${groupIndex}`).value;
+            const filterRow2Input = document.getElementById(`filterRow2_${groupIndex}`).value;
+            
+            const filterRow1 = parseInt(filterRow1Input);
+            const filterRow2 = parseInt(filterRow2Input);
+            
+            // 2. Apply filters
+            const filteredMatches = sourceMatches.filter(match => {
+                
+                // --- Full-Text Filter ---
+                if (filterText) {
+                    // Check match key values
+                    if (String(match.val1).toLowerCase().includes(filterText) || String(match.val2).toLowerCase().includes(filterText)) {
+                        // Pass if match key contains text
+                    } else {
+                        // Check all data cells
+                        const combinedData = [...match.data1, ...match.data2].map(String).join(' ').toLowerCase();
+                        if (!combinedData.includes(filterText)) {
+                            return false; // Does not match full-text search
+                        }
+                    }
+                }
+                
+                // --- Row Index Filter (Sheet 1) ---
+                if (filterRow1Input && !isNaN(filterRow1) && filterRow1 > 0 && match.originalRow1 !== filterRow1) {
+                    return false;
+                }
+                
+                // --- Row Index Filter (Sheet 2) ---
+                if (filterRow2Input && !isNaN(filterRow2) && filterRow2 > 0 && match.originalRow2 !== filterRow2) {
+                    return false;
+                }
+                
+                return true;
+            });
+
+            // 3. Update info text
+            const matchInfoDiv = document.getElementById(`matchInfo_${groupIndex}`);
+            const DISPLAY_LIMIT = 1000; 
+            const totalMatches = filteredMatches.length;
+            const displayCount = Math.min(totalMatches, DISPLAY_LIMIT);
+
+            let infoText = `Found **${totalMatches}** matching row${totalMatches !== 1 ? 's' : ''}`;
+            if (totalMatches !== sourceMatches.length) {
+                // If the filter is active, show the filtered count
+                infoText += ` (Filtered View)`;
+            } else if (totalMatches > DISPLAY_LIMIT) {
+                 // If no filter is active but we hit the display limit
+                infoText += ` (Displaying first ${DISPLAY_LIMIT})`;
+            }
+            
+            matchInfoDiv.innerHTML = `
+                Match Field: <strong>${group.header1}</strong> ↔️ <strong>${group.header2}</strong>
+                <br>${infoText}
+            `;
+
+            // 4. Re-render the table
+            const tableContainer = document.getElementById(`tableContainer_${groupIndex}`);
+            // Create a temporary group object with the filtered matches
+            const tempGroup = { ...group, matches: filteredMatches };
+            tableContainer.innerHTML = `
+                <table>
+                    ${generateMatchTable(tempGroup, displayCount)}
+                </table>
+            `;
         }
 
         function generateMatchTable(group, limit) {
             
+            // Header row now includes Original Row #
             const allHeaders = [
+                `${group.tab1}: Row #`,
                 ...group.headers1.map((h, i) => `${group.tab1}: ${h || 'Col ' + (i + 1)}`),
+                `${group.tab2}: Row #`,
                 ...group.headers2.map((h, i) => `${group.tab2}: ${h || 'Col ' + (i + 1)}`)
             ];
 
@@ -635,21 +1416,27 @@
             allHeaders.forEach(h => { html += `<th>${h}</th>`; });
             html += '</tr></thead><tbody>';
 
-            for (let i = 0; i < limit; i++) {
+            for (let i = 0; i < Math.min(group.matches.length, limit); i++) {
                 const match = group.matches[i];
                 const data1 = match.data1; 
                 const data2 = match.data2;
 
                 html += '<tr>';
                 
-                // Data 1 columns
+                // Original Row Number for Sheet 1
+                html += `<td><strong>${match.originalRow1}</strong></td>`;
+                
+                // Data 1 columns (content is already formatted string)
                 data1.forEach((cell, idx) => {
                     const isHighlight = idx === group.col1;
                     const content = cell || '';
                     html += `<td>${isHighlight ? `<span class="highlight">${content}</span>` : content}</td>`;
                 });
+                
+                // Original Row Number for Sheet 2
+                html += `<td><strong>${match.originalRow2}</strong></td>`;
 
-                // Data 2 columns
+                // Data 2 columns (content is already formatted string)
                 data2.forEach((cell, idx) => {
                     const isHighlight = idx === group.col2;
                     const content = cell || '';
@@ -663,34 +1450,40 @@
             return html;
         }
         
-        // --- EXPORT FUNCTIONS ---
+        // --- EXPORT FUNCTIONS (Comparison Mode) ---
         
-        // 1. Export all match groups to a single workbook (each group is a sheet)
-        function exportResults() {
+        function prepareExportData(group) {
+             // Export headers now include original row numbers
+             const allHeaders = [
+                `${group.tab1}_Original_Row_Num`,
+                ...group.headers1.map((h, i) => `${group.tab1}_${h || 'Col' + (i + 1)}`),
+                `${group.tab2}_Original_Row_Num`,
+                ...group.headers2.map((h, i) => `${group.tab2}_${h || 'Col' + (i + 1)}`)
+            ];
+
+            return [
+                ['Match Key Pair', 'Match Key 1 Value', 'Match Key 2 Value', 'Fuzzy Match', ...allHeaders],
+                // Export data now uses originalRowX
+                ...group.matches.map(m => [
+                    `${group.header1} vs ${group.header2}`, 
+                    m.val1,
+                    m.val2,
+                    m.isFuzzy ? 'Yes' : 'No',
+                    m.originalRow1, 
+                    ...m.data1, 
+                    m.originalRow2, 
+                    ...m.data2 
+                ])
+            ];
+        }
+
+        function exportResults(groups) {
             const newWb = XLSX.utils.book_new();
-
-            allMatches.forEach((group) => {
-                
-                const allHeaders = [
-                    ...group.headers1.map((h, i) => `${group.tab1}_${h || 'Col' + (i + 1)}`),
-                    ...group.headers2.map((h, i) => `${group.tab2}_${h || 'Col' + (i + 1)}`)
-                ];
-
-                const exportData = [
-                    ['Match Key Pair', 'Tab 1 Row', 'Tab 2 Row', 'Match Key 1 Value', 'Match Key 2 Value', ...allHeaders],
-                    ...group.matches.map(m => [
-                        `${group.header1} vs ${group.header2}`, 
-                        m.row1,
-                        m.row2,
-                        m.val1,
-                        m.val2,
-                        ...m.data1, 
-                        ...m.data2 
-                    ])
-                ];
-
+            const exportGroups = groups || allMatches;
+            
+            exportGroups.forEach((group) => {
+                const exportData = prepareExportData(group);
                 const ws = XLSX.utils.aoa_to_sheet(exportData);
-                // Sheet name includes the column pair that was matched
                 const sheetName = `${group.header1} vs ${group.header2}`.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 31);
                 XLSX.utils.book_append_sheet(newWb, ws, sheetName);
             });
@@ -698,28 +1491,12 @@
             XLSX.writeFile(newWb, 'all_matched_data_results.xlsx');
         }
 
-        // 2. Export a single match group
         function exportMatchGroup(groupIndex) {
+            // NOTE: The export function always uses the full, unfiltered match list stored in allMatches
             const group = allMatches[groupIndex];
             if (!group) return;
 
-            const allHeaders = [
-                ...group.headers1.map((h, i) => `${group.tab1}_${h || 'Col' + (i + 1)}`),
-                ...group.headers2.map((h, i) => `${group.tab2}_${h || 'Col' + (i + 1)}`)
-            ];
-
-            const exportData = [
-                ['Match Key Pair', 'Tab 1 Row', 'Tab 2 Row', 'Match Key 1 Value', 'Match Key 2 Value', ...allHeaders],
-                ...group.matches.map(m => [
-                    `${group.header1} vs ${group.header2}`, 
-                    m.row1,
-                    m.row2,
-                    m.val1,
-                    m.val2,
-                    ...m.data1, 
-                    ...m.data2 
-                ])
-            ];
+            const exportData = prepareExportData(group);
 
             const newWb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(exportData);
