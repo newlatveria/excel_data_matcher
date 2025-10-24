@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Data Utility (Dual Mode) - Debug Log Enabled</title>
+    <title>Excel Data Utility (IndexedDB & Dual Mode) - Debug Log Enabled</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/idb@7.1.1/build/umd.js"></script> 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; line-height: 1.6; }
@@ -16,12 +17,12 @@
         input[type="file"] { display: none; }
         .upload-btn { background: linear-gradient(135deg, #00d4ff, #0099cc); color: white; padding: 15px 40px; border: none; border-radius: 8px; font-size: 1.1em; cursor: pointer; transition: transform 0.2s; font-weight: 600; }
         .upload-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4); }
+        .btn:disabled { background: #555; cursor: not-allowed; transform: none; }
         .controls { background: #16213e; border-radius: 12px; padding: 25px; margin-bottom: 30px; display: none; }
         .control-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; color: #00d4ff; font-weight: 600; font-size: 0.95em; }
         input[type="text"], input[type="number"], select, .match-group-filters input[type="text"], .match-group-filters input[type="number"] { width: 100%; padding: 12px; background: #0f1626; border: 1px solid #2a3f5f; border-radius: 6px; color: #eee; font-size: 1em; }
         select { appearance: none; /* Removes default dropdown arrow */ background: #0f1626 url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%2300D4FF%22%20d%3D%22M10%203L6%207L2%203L0%205L6%2011L12%205L10%203Z%22%2F%3E%3C%2Fsvg%3E") no-repeat right 12px center; background-size: 12px; cursor: pointer; }
-        .match-group-filters input[type="text"], .match-group-filters input[type="number"] { padding: 8px !important; font-size: 0.9em !important; }
         input:focus, select:focus { outline: none; border-color: #00d4ff; }
         .checkbox-group { display: flex; align-items: center; gap: 10px; }
         input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
@@ -38,7 +39,6 @@
         .stat-item { text-align: center; }
         .stat-value { font-size: 2em; color: #00d4ff; font-weight: bold; }
         .stat-label { color: #aaa; font-size: 0.9em; margin-top: 5px; }
-        .match-groups { margin-bottom: 30px; }
         .match-group { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         .match-header { color: #00d4ff; font-size: 1.2em; font-weight: bold; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #2a3f5f; display: flex; justify-content: space-between; align-items: center; }
         
@@ -51,88 +51,183 @@
             border-radius: 6px;
         }
 
-        table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-        th { background: #0f1626; color: #00d4ff; padding: 12px; text-align: left; font-weight: 600; position: sticky; top: 0; z-index: 10; }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 0.9em; 
+        }
+        th { 
+            background: #0f1626; 
+            color: #00d4ff; 
+            padding: 12px; 
+            text-align: left; 
+            font-weight: 600; 
+            position: sticky; 
+            top: 0; 
+            z-index: 11; /* Higher z-index for headers */
+        }
         td { padding: 12px; border-bottom: 1px solid #2a3f5f; }
         tr:hover { background: #1a2744; }
         .highlight { background: rgba(0, 212, 255, 0.2); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
         .tab-badge { background: rgba(0, 212, 255, 0.2); color: #00d4ff; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 5px; }
         .export-btn { 
-            background: linear-gradient(135deg, #00ffaa, #00cc88); 
             width: auto !important; 
-            padding: 10px 20px;
+            padding: 10px 15px;
             font-size: 0.9em;
             margin-left: 10px; 
         }
         .export-btn.duplicate-export {
             background: linear-gradient(135deg, #ff9900, #cc7a00);
         }
-        .export-btn:hover { box-shadow: 0 5px 20px rgba(0, 255, 170, 0.4); }
+        .export-btn:hover { box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4); }
         .info { background: #0288d1; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         
-        /* Selection Specific Styles */
-        #sheetSelector {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            padding: 10px 0;
-            margin-bottom: 20px;
-        }
-        .sheet-option {
-            background: #0f1626;
-            border: 1px solid #2a3f5f;
-            border-radius: 6px;
-            padding: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
+        /* --- STICKY COLUMN STYLES (NEW) --- */
+        th:nth-child(1), td:nth-child(1) { 
+            position: sticky;
+            left: 0;
+            z-index: 10; 
+            background: #0f1626; 
+            width: 55px; 
+            min-width: 55px;
             text-align: center;
-            font-weight: 600;
+            border-right: 1px solid #2a3f5f;
         }
-        .sheet-option.selected {
-            background: #00d4ff;
-            color: #1a1a2e;
-            border-color: #00d4ff;
-            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-        }
-        .selection-status {
-            color: #ff00aa;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-        #dedupeBtn {
-            background: linear-gradient(135deg, #f06, #c03);
-            width: 100%;
-        }
-        #dedupeBtn:hover {
-            box-shadow: 0 5px 20px rgba(255, 0, 102, 0.4);
+
+        th:nth-child(2), td:nth-child(2) { 
+            position: sticky;
+            left: 55px; 
+            z-index: 10;
+            background: #0f1626; 
+            width: 100px; 
+            min-width: 100px;
+            border-right: 1px solid #2a3f5f;
         }
         
-        .dedupe-group-title {
-            color: #00d4ff;
+        th { z-index: 11; }
+        /* --- END STICKY COLUMN STYLES --- */
+
+        /* --- STYLES FOR CHECKBOX IGNORE LIST --- */
+        .checkbox-container {
+            border: 1px solid #2a3f5f;
+            border-radius: 6px;
+            padding: 10px;
+            height: 150px; 
+            overflow-y: auto;
+            background: #0f1626;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 0;
+            cursor: pointer;
+        }
+        .checkbox-item:hover {
+            background: #1a2744;
+        }
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 8px;
+            min-width: 15px;
+            min-height: 15px;
+        }
+        .checkbox-item label {
+            margin: 0;
+            font-weight: normal;
+            color: #eee; 
+            cursor: pointer;
+            flex-grow: 1;
+        }
+        /* --- END NEW STYLES --- */
+        
+        /* --- USER FRIENDLY SHEET SELECTION --- */
+        .sheet-button-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 15px;
+            background: #0f1626; /* Darker background for the list */
+            border-radius: 8px;
+            border: 1px solid #2a3f5f;
+        }
+        .sheet-option {
+            background: #16213e;
+            color: #eee;
+            padding: 10px 15px;
+            border: 1px solid #2a3f5f;
+            border-radius: 6px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        .sheet-option:hover {
+            background: #0f1626;
+            border-color: #00d4ff;
+        }
+        .sheet-option.selected {
+            background: #00d4ff; /* Highlight selected sheets */
+            color: #1a1a2e;
+            border-color: #00d4ff;
+            font-weight: 700;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .selection-slot {
+            flex: 1;
+            background: #0f1626;
+            border-radius: 8px;
+            padding: 15px;
+            border: 2px solid #2a3f5f;
+            min-height: 80px;
+            transition: all 0.3s;
+        }
+        #slot1 { border-color: #00ffaa; } /* Green for Sheet 1 */
+        #slot2 { border-color: #ffaa00; } /* Amber for Sheet 2 */
+
+        .slot-header {
+            color: #aaa;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        .slot-name-placeholder {
+            color: #555;
+            font-style: italic;
+            padding-top: 5px;
+            font-size: 0.9em;
+        }
+        .slot-name-active {
             font-size: 1.2em;
+            font-weight: 700;
+            color: #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .slot-name-active .remove-btn {
+            background: transparent;
+            border: none;
+            color: #ff6347; 
+            cursor: pointer;
             font-weight: bold;
+            font-size: 0.9em;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background 0.2s;
         }
-        /* Style for the filter labels in the match groups */
-        .match-group-filters label {
-             color: #ccc; 
-             font-size: 0.85em; 
-             margin-bottom: 3px; 
-             display: block; 
-             font-weight: normal;
+        .slot-name-active .remove-btn:hover {
+            background: rgba(255, 99, 71, 0.2);
+            color: #ff0000;
         }
-        /* Targeted match button style */
-        #targetedMatchBtn {
-            background: linear-gradient(135deg, #00ffaa, #00cc88);
-        }
-        #targetedMatchBtn:hover {
-            box-shadow: 0 5px 20px rgba(0, 255, 170, 0.4);
-        }
+        /* --- END USER FRIENDLY SHEET SELECTION --- */
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📊 Excel Data Utility (Dual Mode) - Debug Enabled</h1>
-        <p class="subtitle">Select **one sheet** for deduplication or **two sheets** for comparison. **Please open your browser's Console (F12) to view detailed file-loading logs.**</p>
+        <h1>💾 Excel Data Utility (IndexedDB & Dual Mode)</h1>
+        <p class="subtitle">Data is stored robustly in your browser's local database, ensuring **no UI freeze** for large files. **Please open your Console (F12) to view detailed logs.**</p>
 
         <div class="upload-section">
             <input type="file" id="fileInput" accept=".xlsx,.xls">
@@ -141,10 +236,25 @@
         </div>
 
         <div class="controls" id="controls">
-            <label class="selection-status" id="selectionStatus">Please select one sheet for deduplication or two for comparison. (Selected: 0)</label>
-            <div id="sheetSelector">
-                </div>
             
+            <label class="selection-status" id="selectionStatus">
+                <span style="font-size:1.1em; color:#00ffaa; font-weight:700;">STEP 1: Select Sheet(s)</span>
+                <br>Click a sheet name below to assign it to a slot.
+            </label>
+            
+            <div id="selectionVisualizer" style="display: flex; gap: 20px; margin-bottom: 20px;">
+                <div id="slot1" class="selection-slot">
+                    <div class="slot-header">Sheet 1 (Source/Dedupe)</div>
+                    <div id="slot1Name" class="slot-name-placeholder">Click a sheet name below...</div>
+                </div>
+                <div id="slot2" class="selection-slot">
+                    <div class="slot-header">Sheet 2 (Target/Optional)</div>
+                    <div id="slot2Name" class="slot-name-placeholder">Click a second sheet name...</div>
+                </div>
+            </div>
+
+            <div id="sheetSelector" class="sheet-button-list">
+                </div>
             <div class="control-group" id="dedupeControls" style="display: none;">
                 <button class="btn" id="dedupeBtn">🧹 Find and Remove Duplicates within Sheet</button>
             </div>
@@ -161,7 +271,7 @@
                 <div class="control-group">
                     <div class="checkbox-group">
                         <input type="checkbox" id="robustExactMatch">
-                        <label for="robustExactMatch">💪 **Enable Robust Exact Match** (Aggressively strips spaces, punctuation, and numbers for **Exact** check: `JohnSmith` = `john,Smith` = `Smith2John` = **`John Smith` vs `Smith John`**)</label>
+                        <label for="robustExactMatch">💪 **Enable Robust Exact Match** (Aggressively strips spaces, punctuation, and numbers for **Exact** check: `JohnSmith` = `john,Smith` = `Smith2John`)</label>
                     </div>
                 </div>
                 <div class="control-group">
@@ -170,7 +280,21 @@
                         <label for="removeDuplicates">🧹 **Remove Cross-Sheet Duplicate Matches** (Keeps only one instance of a matched row pair, e.g., prevents matching on both ID *and* Name if both link the same Sheet1 Row to the same Sheet2 Row)</label>
                     </div>
                 </div>
-
+                
+                <div class="control-group" id="ignoreControls" style="border-top: 1px solid #2a3f5f; padding-top: 20px; border-bottom: 1px solid #2a3f5f; padding-bottom: 20px;">
+                    <h3 style="color: #ffaa00; margin-bottom: 15px;">🚫 Columns to IGNORE (Exhaustive Match Only)</h3>
+                    <p style="color: #aaa; font-size: 0.85em; margin-bottom: 15px;">Select multiple columns to skip during the **Exhaustive** matching process.</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <label id="ignoreCol1Label">Columns to Ignore in Sheet 1</label>
+                            <div id="ignoreCols1Container" class="checkbox-container"></div>
+                        </div>
+                        <div>
+                            <label id="ignoreCol2Label">Columns to Ignore in Sheet 2</label>
+                            <div id="ignoreCols2Container" class="checkbox-container"></div>
+                        </div>
+                    </div>
+                </div>
                 <div class="control-group">
                     <div class="checkbox-group">
                         <input type="checkbox" id="fuzzyMatch">
@@ -240,23 +364,48 @@
                     </div>
                 </div>
             </div>
+
+            <div id="exportIgnoreControls" class="controls" style="display: none; padding: 20px; margin-bottom: 20px;">
+                <h3 style="color: #ffaa00; margin-bottom: 15px;">📥 Columns to Exclude from EXPORT</h3>
+                <p style="color: #aaa; font-size: 0.85em; margin-bottom: 15px;">Select columns you **do not** want included in the final Excel file export(s). Applies to all downloaded files.</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <label id="exportIgnoreCol1Label">Columns to Exclude in Sheet 1</label>
+                        <div id="exportIgnoreCols1Container" class="checkbox-container"></div>
+                    </div>
+                    <div>
+                        <label id="exportIgnoreCol2Label">Columns to Exclude in Sheet 2</label>
+                        <div id="exportIgnoreCols2Container" class="checkbox-container"></div>
+                    </div>
+                </div>
+            </div>
             <div class="match-groups" id="matchGroups"></div>
-            <button class="btn" id="exportAllBtn" style="background: linear-gradient(135deg, #e74c3c, #c0392b); font-size: 1.1em; margin-top: 20px; display: none;">Export ALL Match Groups to a Single Workbook</button>
+            <button class="btn" id="exportAllBtn" style="background: linear-gradient(135deg, #e74c3c, #c0392b); font-size: 1.1em; margin-top: 20px; display: none;">Export ALL Selected Match Rows to a Single Workbook</button>
         </div>
     </div>
 
     <script>
-        let workbook = null; 
-        let sheetData = {};  
+        
+        // --- IndexedDB Constants and Global State ---
+        const DB_NAME = 'ExcelDataUtilityDB';
+        const DB_VERSION = 2; // <--- FIX 1: Set main thread version to 2
+        const ROW_STORE_PREFIX = 'Sheet_';
+        const METADATA_STORE_NAME = 'SheetMetadata';
+        
+        let db = null;
+        let parsingWorker = null; 
+        
         let allMatches = [];  
         let matchingWorker = null; 
         let selectedSheets = []; 
+        let sheetNames = []; // Global list of names fetched from the DB
+        let sheetHeaders = {}; // Cached headers: { sheetName: ['H1', 'H2', ...] }
         
         let uniqueSheetData = null;      
         let duplicateRowsData = null;    
         let removedDuplicatesCount = 0; 
-
-        // --- UI Element Selectors ---
+        
+        // ... (UI Element Selectors remain the same) ...
         const fileInput = document.getElementById('fileInput');
         const controls = document.getElementById('controls');
         const results = document.getElementById('results');
@@ -267,26 +416,31 @@
         const fuzzyOptions = document.getElementById('fuzzyOptions');
         const removeDuplicates = document.getElementById('removeDuplicates');
         const dedupeSourceSheets = document.getElementById('dedupeSourceSheets');
-        const robustExactMatch = document.getElementById('robustExactMatch'); // NEW
+        const robustExactMatch = document.getElementById('robustExactMatch'); 
         const sheetSelectorDiv = document.getElementById('sheetSelector');
         const selectionStatus = document.getElementById('selectionStatus');
         const exportAllBtn = document.getElementById('exportAllBtn');
         const dedupeControls = document.getElementById('dedupeControls');
         const matchControls = document.getElementById('matchControls');
         const resultsInfo = document.getElementById('resultsInfo');
-        
-        // NEW TARGETED MATCH SELECTORS
+        const slot1NameDiv = document.getElementById('slot1Name');
+        const slot2NameDiv = document.getElementById('slot2Name');
         const targetedMatchControls = document.getElementById('targetedMatchControls');
         const column1Selector = document.getElementById('column1Selector');
         const column2Selector = document.getElementById('column2Selector');
         const targetedMatchBtn = document.getElementById('targetedMatchBtn');
-        
-        // GLOBAL FILTER SELECTORS (UPDATED)
+        const ignoreCols1Container = document.getElementById('ignoreCols1Container');
+        const ignoreCols2Container = document.getElementById('ignoreCols2Container');
         const groupFiltersDiv = document.getElementById('groupFilters');
         const headerSelector = document.getElementById('headerSelector'); 
         const minMatchesInput = document.getElementById('minMatches');
         const maxMatchesInput = document.getElementById('maxMatches');
         const filterFuzzyCheckbox = document.getElementById('filterFuzzy');
+        const exportIgnoreControlsDiv = document.getElementById('exportIgnoreControls');
+        const exportIgnoreCols1Container = document.getElementById('exportIgnoreCols1Container');
+        const exportIgnoreCols2Container = document.getElementById('exportIgnoreCols2Container');
+        const exportIgnoreCol1Label = document.getElementById('exportIgnoreCol1Label');
+        const exportIgnoreCol2Label = document.getElementById('exportIgnoreCol2Label');
 
         // --- Event Listeners ---
         fileInput.addEventListener('change', handleFile);
@@ -294,21 +448,291 @@
             fuzzyOptions.style.display = fuzzyMatch.checked ? 'block' : 'none';
         });
         
-        // UPDATED MATCHING BUTTON LISTENERS 
-        matchBtn.addEventListener('click', () => startMatching(false)); // Exhaustive Mode
-        targetedMatchBtn.addEventListener('click', () => startMatching(true)); // Targeted Mode
+        matchBtn.addEventListener('click', () => startMatching(false));
+        targetedMatchBtn.addEventListener('click', () => startMatching(true));
         
-        exportAllBtn.addEventListener('click', () => exportResults(allMatches)); 
+        exportAllBtn.addEventListener('click', () => exportResults()); 
         dedupeBtn.addEventListener('click', startDeduplication); 
         
-        // GLOBAL FILTER EVENT LISTENERS
         headerSelector.addEventListener('change', filterAndDisplayResults); 
         minMatchesInput.addEventListener('input', filterAndDisplayResults);
         maxMatchesInput.addEventListener('input', filterAndDisplayResults);
         filterFuzzyCheckbox.addEventListener('change', filterAndDisplayResults);
 
 
-        // --- Helper Functions ---
+        // --- IndexedDB Management Functions (using idb library) ---
+
+        async function initDB() {
+            console.log("LOG: Initializing IndexedDB...");
+            db = await idb.openDB(DB_NAME, DB_VERSION, {
+                upgrade(db, oldVersion, newVersion, transaction) {
+                    console.log(`LOG: DB Upgrade from ${oldVersion} to ${newVersion}`);
+                    // Ensure the metadata store exists, but the row stores are created by the parsing worker.
+                    if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) {
+                         db.createObjectStore(METADATA_STORE_NAME, { keyPath: 'sheetName' });
+                    }
+                    // NOTE: The rest of the stores are created by the worker, requesting version 2.
+                },
+                blocked() {
+                    alert('IndexedDB blocked. Close other tabs using this utility.');
+                },
+                blocking() {
+                    db.close();
+                    alert('Newer version of IndexedDB available. Please reload.');
+                }
+            });
+            console.log("LOG: IndexedDB connection successful.");
+            return db;
+        }
+        
+        async function deleteCurrentDB() {
+            if (db) db.close();
+            await idb.deleteDB(DB_NAME);
+            console.log("LOG: Previous IndexedDB deleted successfully.");
+        }
+        
+        async function getMetadata() {
+            if (!db) await initDB();
+            // This implicitly creates a transaction, which requires an open, stable connection.
+            const metadata = await db.getAll(METADATA_STORE_NAME); 
+            
+            sheetNames = metadata.map(m => m.sheetName);
+            sheetHeaders = {};
+            metadata.forEach(m => {
+                sheetHeaders[m.sheetName] = m.headers;
+            });
+            
+            console.log(`LOG: Fetched ${sheetNames.length} sheet names from DB metadata.`);
+        }
+
+        async function getHeadersForSheet(sheetName) {
+            if (sheetHeaders[sheetName]) return sheetHeaders[sheetName];
+            if (!db) await initDB();
+            
+            // Fallback: read from the metadata store
+            const metadata = await db.get(METADATA_STORE_NAME, sheetName);
+            if (metadata) {
+                sheetHeaders[sheetName] = metadata.headers;
+                return metadata.headers;
+            }
+            
+            return [];
+        }
+        
+        async function getAllRowsFromStore(storeName) {
+            if (!db) await initDB();
+            const rows = [];
+            // Transaction against the row store
+            let cursor = await db.transaction(storeName).store.openCursor(); 
+            while (cursor) {
+                // cursor.value.data is the actual AoA row
+                rows.push(cursor.value.data); 
+                cursor = await cursor.continue();
+            }
+            return rows;
+        }
+
+        // --- Worker Creator Functions (Parsing and Matching) ---
+        
+        function createParsingWorker(arrayBuffer, fileName) {
+            
+            const workerScript = `
+                importScripts('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+                importScripts('https://cdn.jsdelivr.net/npm/idb@7.1.1/build/umd.js');
+                
+                const DB_NAME = 'ExcelDataUtilityDB';
+                const ROW_STORE_PREFIX = 'Sheet_';
+                const METADATA_STORE_NAME = 'SheetMetadata';
+                const DB_VERSION_FOR_SHEET_CREATION = 2; // Fixed to version 2
+
+                self.onmessage = async function(e) {
+                    try {
+                        const { fileData, sheetNamesToCreate } = e.data;
+                        self.postMessage({ type: 'progress', percent: 10, text: 'Worker: Starting synchronous file read (XLSX)...' });
+                        
+                        const data = new Uint8Array(fileData);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        self.postMessage({ type: 'progress', percent: 30, text: \`Worker: Parsing complete. Found \${workbook.SheetNames.length} sheets.\` });
+
+                        const sheetsMetadata = [];
+
+                        // 1. Open the DB connection with all sheet stores
+                        const db = await idb.openDB(DB_NAME, DB_VERSION_FOR_SHEET_CREATION, { 
+                            upgrade(db, oldVersion, newVersion, transaction) {
+                                if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) {
+                                     db.createObjectStore(METADATA_STORE_NAME, { keyPath: 'sheetName' });
+                                }
+                                
+                                // Create object stores for each sheet using the prefix and sheet name
+                                workbook.SheetNames.forEach(sheetName => {
+                                    const storeName = ROW_STORE_PREFIX + sheetName;
+                                    if (!db.objectStoreNames.contains(storeName)) {
+                                        db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
+                                    }
+                                });
+                            }
+                        });
+                        
+                        self.postMessage({ type: 'progress', percent: 50, text: 'Worker: Database stores created. Starting data insertion...' });
+                        
+                        let totalRows = 0;
+                        const totalSheets = workbook.SheetNames.length;
+                        let completedSheets = 0;
+
+                        // 2. Start a single transaction for all insertions
+                        const storeNames = [METADATA_STORE_NAME, ...workbook.SheetNames.map(name => ROW_STORE_PREFIX + name)];
+                        const tx = db.transaction(storeNames, 'readwrite'); 
+
+                        for (const sheetName of workbook.SheetNames) {
+                            const storeName = ROW_STORE_PREFIX + sheetName;
+                            const sheetStore = tx.objectStore(storeName);
+                            const metadataStore = tx.objectStore(METADATA_STORE_NAME);
+                            
+                            const sheet = workbook.Sheets[sheetName];
+                            
+                            // Get sheet data as AoA (Row-wise array of arrays)
+                            const sheetAsAoA = XLSX.utils.sheet_to_json(sheet, { 
+                                header: 1, 
+                                defval: '', 
+                                raw: false, 
+                                dateNF: 'YYYY-MM-DD HH:MM:SS' 
+                            });
+
+                            const headers = sheetAsAoA[0] || [];
+                            const dataRows = sheetAsAoA.slice(1);
+                            
+                            // Store metadata first
+                            const metadata = {
+                                sheetName: sheetName, 
+                                headers: headers, 
+                                totalRows: dataRows.length
+                            };
+                            metadataStore.put(metadata);
+                            sheetsMetadata.push(metadata);
+
+                            // Insert rows (including header, though the matching worker will slice it)
+                            // We store the data as { id, data: row_array }
+                            for (const row of sheetAsAoA) {
+                                await sheetStore.add({ data: row });
+                            }
+                            
+                            totalRows += dataRows.length;
+                            completedSheets++;
+
+                            self.postMessage({ 
+                                type: 'progress', 
+                                percent: 50 + (completedSheets / totalSheets) * 40, 
+                                text: \`Worker: Inserting data for '\${sheetName}' (\${completedSheets}/\${totalSheets})...\` 
+                            });
+                        }
+                        
+                        await tx.done; // Wait for the entire transaction to complete
+                        db.close(); // Explicitly close the worker's connection
+                        
+                        self.postMessage({ 
+                            type: 'complete', 
+                            sheetNames: workbook.SheetNames,
+                            totalRows: totalRows,
+                            text: \`Parsing and insertion complete! \${totalSheets} sheets, \${totalRows} rows stored.\`
+                        });
+
+                    } catch (error) {
+                        self.postMessage({ 
+                            type: 'error', 
+                            message: 'Parsing Worker failed: ' + error.message, 
+                            stack: error.stack 
+                        });
+                    }
+                };
+            `;
+            
+            const blob = new Blob([workerScript], { type: 'application/javascript' });
+            const workerUrl = URL.createObjectURL(blob);
+            parsingWorker = new Worker(workerUrl);
+            return parsingWorker;
+        }
+
+        // --- File Handling (Now uses the Parsing Worker) ---
+        async function handleFile(e) {
+            const file = e.target.files[0];
+            
+            if (!file) return;
+
+            // Reset state
+            selectedSheets = [];
+            matchBtn.disabled = true;
+            targetedMatchBtn.disabled = true;
+            results.style.display = 'none';
+            controls.style.display = 'none';
+            progress.style.display = 'block';
+            sheetSelectorDiv.innerHTML = '';
+            
+            // Close and delete DB. The worker will re-create it at version 2.
+            await deleteCurrentDB(); 
+
+            updateProgress(5, `Starting file read: ${file.name} (File parsing will run in background to prevent UI freeze)`);
+
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                const arrayBuffer = event.target.result;
+                const worker = createParsingWorker(arrayBuffer, file.name);
+
+                // Transferable objects (ArrayBuffer) dramatically speed up transfer
+                worker.postMessage({
+                    fileData: arrayBuffer,
+                    fileName: file.name
+                }, [arrayBuffer]); 
+
+                worker.onmessage = async (workerEvent) => {
+                    const data = workerEvent.data;
+                    if (data.type === 'progress') {
+                        updateProgress(data.percent, data.text);
+                    } else if (data.type === 'complete') {
+                        
+                        await initDB(); // <--- FIX 2: Re-open main thread connection (now at V2)
+                        await getMetadata(); // Load sheetNames and Headers from the DB
+                        
+                        initializeSheetSelector(data.sheetNames);
+                        updateProgress(100, data.text + ' Ready to select tabs.');
+                        
+                        setTimeout(() => { 
+                            progress.style.display = 'none';
+                            controls.style.display = 'block';
+                            updateSelectionSlots(); 
+                            updateSelectionStatus();
+                        }, 500);
+                        
+                    } else if (data.type === 'error') {
+                        console.error("Parsing Worker Error:", data.stack);
+                        progress.style.display = 'none';
+                        controls.style.display = 'block'; 
+                        alert('Error parsing file: ' + data.message + '. Check console for details.');
+                        matchBtn.disabled = true; 
+                        targetedMatchBtn.disabled = true;
+                    }
+                };
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function initializeSheetSelector(names) {
+            sheetSelectorDiv.innerHTML = '';
+            names.forEach(sheetName => {
+                const sheetBtn = document.createElement('div');
+                sheetBtn.className = 'sheet-option';
+                sheetBtn.textContent = sheetName;
+                sheetBtn.setAttribute('data-sheet-name', sheetName); 
+                sheetBtn.onclick = () => toggleSheetSelection(sheetName); 
+                sheetSelectorDiv.appendChild(sheetBtn);
+            });
+        }
+
+
+        // --- UI and Selection Logic (Remains mostly the same) ---
+
         function updateProgress(percent, text) {
             const progressFill = document.getElementById('progressFill');
             const progressText = document.getElementById('progressText');
@@ -318,75 +742,202 @@
             progressText.textContent = text;
         }
 
-        function populateColumnSelectors() {
+        // ... (createCheckboxItem and getCheckedColumnIndices remain the same) ...
+        function getCheckedColumnIndices(containerElement) {
+            const checkboxes = containerElement.querySelectorAll('input[type="checkbox"]');
+            const selectedValues = [];
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedValues.push(parseInt(checkbox.value));
+                }
+            });
+            return selectedValues;
+        }
+        
+        function createCheckboxItem(value, labelText, id) {
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = value;
+            checkbox.id = id;
+            
+            const label = document.createElement('label');
+            label.htmlFor = id;
+            label.textContent = labelText;
+            
+            div.appendChild(checkbox);
+            div.appendChild(label);
+            
+            div.addEventListener('click', (e) => {
+                if (e.target !== checkbox) {
+                    e.preventDefault(); 
+                    checkbox.checked = !checkbox.checked;
+                    if (id.startsWith('exportIgnore')) {
+                        const totalSelectedMatches = allMatches.reduce((sum, group) => {
+                            return sum + group.matches.filter(m => m.keep).length;
+                        }, 0);
+                        exportAllBtn.textContent = `Export ALL Selected Match Rows (${totalSelectedMatches} rows) to a Single Workbook`;
+                    }
+                }
+            });
+            
+            return div;
+        }
+
+        async function populateColumnSelectors() {
             if (selectedSheets.length !== 2) return;
             
             const [sheet1Name, sheet2Name] = selectedSheets;
             
+            // Fetch headers asynchronously from the DB cache/metadata store
+            const headers1 = await getHeadersForSheet(sheet1Name);
+            const headers2 = await getHeadersForSheet(sheet2Name);
+
             // Update Labels
             document.getElementById('col1Label').textContent = `${sheet1Name} Column (to search)`;
             document.getElementById('col2Label').textContent = `${sheet2Name} Column(s) (to match against)`;
+            document.getElementById('ignoreCol1Label').textContent = `Columns to Ignore in ${sheet1Name}`;
+            document.getElementById('ignoreCol2Label').textContent = `Columns to Ignore in ${sheet2Name}`;
 
-            const headers1 = sheetData[sheet1Name][0] || [];
-            const headers2 = sheetData[sheet2Name][0] || [];
-
-            // Clear and Populate Column 1 Selector
+            // Clear ALL Selectors/Containers
             column1Selector.innerHTML = '';
+            column2Selector.innerHTML = '';
+            ignoreCols1Container.innerHTML = ''; 
+            ignoreCols2Container.innerHTML = ''; 
+            
+            // Populate Sheet 1 Selectors
             headers1.forEach((header, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = `${header || 'Col ' + (index + 1)}`;
-                column1Selector.appendChild(option);
+                const text = `${header || 'Col ' + (index + 1)}`;
+                const option1 = document.createElement('option');
+                option1.value = index;
+                option1.textContent = text;
+                column1Selector.appendChild(option1);
+                ignoreCols1Container.appendChild(createCheckboxItem(index, text, `ignore1_${index}`));
             });
             
-            // Clear and Populate Column 2 Selector
-            // Add the "Match against all columns" option first
-            column2Selector.innerHTML = '';
+            // Targeted Column 2: Add "ALL" option first
             const allOption = document.createElement('option');
             allOption.value = 'all';
             allOption.textContent = `--- Match against ALL ${headers2.length} Columns ---`;
             column2Selector.appendChild(allOption);
             
+            // Populate Sheet 2 Selectors
             headers2.forEach((header, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = `${header || 'Col ' + (index + 1)}`;
-                column2Selector.appendChild(option);
+                const text = `${header || 'Col ' + (index + 1)}`;
+                const option2 = document.createElement('option');
+                option2.value = index;
+                option2.textContent = text;
+                column2Selector.appendChild(option2);
+                ignoreCols2Container.appendChild(createCheckboxItem(index, text, `ignore2_${index}`));
             });
         }
         
-        function updateSelectionStatus() {
+        // ... (populateExportIgnoreSelectors, updateSelectionSlots, removeSheetFromSlot remain the same) ...
+        function populateExportIgnoreSelectors(group) {
+            if (!group) return; 
+
+            const headers1 = group.headers1;
+            const headers2 = group.headers2;
+            
+            exportIgnoreCol1Label.textContent = `Columns to Exclude in ${group.tab1}`;
+            exportIgnoreCol2Label.textContent = `Columns to Exclude in ${group.tab2}`;
+
+            exportIgnoreCols1Container.innerHTML = ''; 
+            exportIgnoreCols2Container.innerHTML = ''; 
+            
+            headers1.forEach((header, index) => {
+                const text = `${header || 'Col ' + (index + 1)}`;
+                exportIgnoreCols1Container.appendChild(createCheckboxItem(index, text, `exportIgnore1_${index}`));
+            });
+            
+            headers2.forEach((header, index) => {
+                const text = `${header || 'Col ' + (index + 1)}`;
+                exportIgnoreCols2Container.appendChild(createCheckboxItem(index, text, `exportIgnore2_${index}`));
+            });
+            
+            exportIgnoreControlsDiv.style.display = 'block';
+        }
+
+        function updateSelectionSlots() {
+            const sheet1Name = selectedSheets[0];
+            const sheet2Name = selectedSheets[1];
+            
+            if (sheet1Name) {
+                slot1NameDiv.className = 'slot-name-active';
+                slot1NameDiv.innerHTML = `
+                    ${sheet1Name} 
+                    <button class="remove-btn" onclick="window.removeSheetFromSlot('${sheet1Name}')">[x Remove]</button>
+                `;
+            } else {
+                slot1NameDiv.className = 'slot-name-placeholder';
+                slot1NameDiv.textContent = 'Click a sheet name below...';
+            }
+
+            if (sheet2Name) {
+                slot2NameDiv.className = 'slot-name-active';
+                slot2NameDiv.innerHTML = `
+                    ${sheet2Name}
+                    <button class="remove-btn" onclick="window.removeSheetFromSlot('${sheet2Name}')">[x Remove]</button>
+                `;
+            } else {
+                slot2NameDiv.className = 'slot-name-placeholder';
+                slot2NameDiv.textContent = sheet1Name ? 'Click a second sheet name...' : 'Click a second sheet name...';
+            }
+            
+            document.querySelectorAll('.sheet-option').forEach(el => {
+                const name = el.getAttribute('data-sheet-name');
+                if (selectedSheets.includes(name)) {
+                    el.classList.add('selected');
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+        }
+        
+        window.removeSheetFromSlot = function(sheetName) {
+             const index = selectedSheets.indexOf(sheetName);
+             if (index > -1) {
+                selectedSheets.splice(index, 1);
+                updateSelectionSlots(); 
+                updateSelectionStatus(); 
+             }
+        }
+
+
+        async function updateSelectionStatus() {
             results.style.display = 'none'; 
             exportAllBtn.style.display = 'none'; 
             matchControls.style.display = 'none';
             dedupeControls.style.display = 'none';
             groupFiltersDiv.style.display = 'none'; 
             targetedMatchControls.style.display = 'none';
+            exportIgnoreControlsDiv.style.display = 'none'; 
             
-            // Clear prior single-sheet results
             uniqueSheetData = null;
             duplicateRowsData = null;
 
             if (selectedSheets.length === 1) {
                 const sheetName = selectedSheets[0];
-                selectionStatus.innerHTML = `**Mode:** **Deduplication** on <span class="tab-badge">${sheetName}</span>. Ready to clean data.`;
+                selectionStatus.innerHTML = `<span style="font-size:1.1em; color:#00ffaa; font-weight:700;">STEP 1: Select Sheet(s)</span><br>Selected: **Deduplication** on <span class="tab-badge">${sheetName}</span>. Ready to clean data.`;
                 dedupeControls.style.display = 'block';
                 resultsInfo.textContent = '⚠️ Only the first 1,000 unique rows will be displayed below. All unique rows are included in the exported file.';
 
             } else if (selectedSheets.length === 2) {
                 const [sheet1Name, sheet2Name] = selectedSheets;
-                selectionStatus.innerHTML = `**Mode:** **Comparison** between <span class="tab-badge">${sheet1Name}</span> vs <span class="tab-badge">${sheet2Name}</span>.`;
+                selectionStatus.innerHTML = `<span style="font-size:1.1em; color:#00ffaa; font-weight:700;">STEP 1: Select Sheet(s)</span><br>Selected: **Comparison** between <span class="tab-badge">${sheet1Name}</span> vs <span class="tab-badge">${sheet2Name}</span>.`;
                 matchControls.style.display = 'block';
                 matchBtn.disabled = false;
                 matchBtn.textContent = 'Find All Potential Matches (Exhaustive)';
-                targetedMatchBtn.disabled = false; // Enable targeted button
-                targetedMatchControls.style.display = 'block'; // Show targeted controls
+                targetedMatchBtn.disabled = false;
+                targetedMatchControls.style.display = 'block';
                 resultsInfo.textContent = '⚠️ Only the first **1,000** rows/matches will be displayed below. All results are included in the exported files.';
                 
-                populateColumnSelectors();
+                await populateColumnSelectors();
 
             } else {
-                selectionStatus.textContent = `Please select one sheet for deduplication or two for comparison. (Selected: ${selectedSheets.length})`;
+                selectionStatus.innerHTML = `<span style="font-size:1.1em; color:#00ffaa; font-weight:700;">STEP 1: Select Sheet(s)</span><br>Please select one sheet for deduplication or two for comparison. (Selected: 0)`;
                 matchControls.style.display = 'block';
                 matchBtn.disabled = true;
                 targetedMatchBtn.disabled = true;
@@ -394,167 +945,58 @@
             }
         }
 
-        function toggleSheetSelection(sheetName, element) {
+        function toggleSheetSelection(sheetName) {
             const index = selectedSheets.indexOf(sheetName);
             
-            document.querySelectorAll('.sheet-option').forEach(el => el.classList.remove('selected'));
-            
             if (index > -1) {
-                selectedSheets = [];
-            } else if (selectedSheets.length === 0) {
-                selectedSheets.push(sheetName);
-            } else if (selectedSheets.length === 1) {
-                if (selectedSheets[0] !== sheetName) {
+                selectedSheets.splice(index, 1);
+            } else {
+                if (selectedSheets.length === 0) {
                     selectedSheets.push(sheetName);
-                } else {
-                    selectedSheets = []; 
+                } else if (selectedSheets.length === 1) {
+                    selectedSheets.push(sheetName);
+                } else if (selectedSheets.length === 2) {
+                    selectedSheets = [sheetName]; 
                 }
-            } else if (selectedSheets.length === 2) {
-                selectedSheets = [sheetName]; 
             }
             
-            selectedSheets.forEach(sName => {
-                const el = document.querySelector(`.sheet-option[data-sheet-name="${sName}"]`);
-                if(el) el.classList.add('selected');
-            });
-
+            updateSelectionSlots(); 
             updateSelectionStatus();
         }
 
-        // --- File Handling (Main Thread Parsing) ---
-        function handleFile(e) {
-            const file = e.target.files[0];
-            
-            // LOG 1: File selection check
-            console.log("LOG 1: handleFile triggered.");
-            if (!file) {
-                console.warn("LOG: No file selected.");
-                return;
-            }
-
-            // LOG 2: File details
-            console.log(`LOG 2: Selected file: ${file.name}, Size: ${(file.size / 1024).toFixed(2)} KB, Type: ${file.type}`);
-
-            // Reset state
-            selectedSheets = [];
-            matchBtn.disabled = true;
-            targetedMatchBtn.disabled = true;
-            results.style.display = 'none';
-            progress.style.display = 'block';
-            controls.style.display = 'none';
-            updateProgress(5, `Starting file read: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
-
-            const reader = new FileReader();
-            
-            reader.onload = function(event) {
-                // LOG 3: FileReader onload event fired.
-                console.log("LOG 3: FileReader onload event fired. Data is now available in memory (ArrayBuffer).");
-                try {
-                    updateProgress(40, 'Parsing Excel file...');
-                    
-                    const data = new Uint8Array(event.target.result);
-                    
-                    // LOG 4: Before XLSX.read
-                    console.log("LOG 4: Attempting XLSX.read (synchronous parse) using data of length:", data.length);
-                    workbook = XLSX.read(data, { type: 'array' }); 
-                    
-                    // LOG 5: After XLSX.read
-                    console.log("LOG 5: XLSX.read completed. Workbook object created.");
-                    
-                    sheetData = {};
-                    sheetSelectorDiv.innerHTML = '';
-                    
-                    // Critical check: Ensure sheets were loaded
-                    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-                        console.error("LOG: No sheets found in workbook.", workbook);
-                         throw new Error("No readable sheets found in the file. File may be empty or corrupted.");
-                    }
-                    
-                    // LOG 6: Sheet list
-                    console.log(`LOG 6: Workbook contains ${workbook.SheetNames.length} sheets: ${workbook.SheetNames.join(', ')}`);
-
-
-                    for(const sheetName of workbook.SheetNames) {
-                        // Robust read with formatting to ensure clean string data
-                        const sheetAsJson = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { 
-                            header: 1, 
-                            defval: '', 
-                            raw: false, 
-                            dateNF: 'YYYY-MM-DD HH:MM:SS' 
-                        }); 
-                        
-                        sheetData[sheetName] = sheetAsJson;
-
-                        // LOG 7: Sheet processing status
-                        console.log(`LOG 7: Sheet '${sheetName}' parsed into ${sheetData[sheetName].length} rows (including header).`);
-
-                        const sheetBtn = document.createElement('div');
-                        sheetBtn.className = 'sheet-option';
-                        sheetBtn.textContent = sheetName;
-                        sheetBtn.setAttribute('data-sheet-name', sheetName); 
-                        sheetBtn.onclick = () => toggleSheetSelection(sheetName, sheetBtn);
-                        sheetSelectorDiv.appendChild(sheetBtn);
-                    }
-                    
-                    updateProgress(100, `Successfully loaded ${workbook.SheetNames.length} sheets. Ready to select tabs.`);
-                    console.log("LOG 8: All sheets processed. UI update starting.");
-                    
-                    setTimeout(() => { 
-                        progress.style.display = 'none';
-                        controls.style.display = 'block';
-                        updateSelectionStatus();
-                    }, 100);
-                    
-                } catch (error) {
-                    // LOG 9: Error catching
-                    console.error("LOG 9: File processing error caught:", error);
-                    progress.style.display = 'none';
-                    controls.style.display = 'block'; // Show controls so they can re-upload
-                    alert('Error reading or parsing file: ' + error.message + '\n\nCheck the console (F12) for detailed LOG messages and the full stack trace.');
-                    matchBtn.disabled = true; 
-                    targetedMatchBtn.disabled = true;
-                    // Reset sheet selector to be safe
-                    sheetSelectorDiv.innerHTML = ''; 
-                    selectionStatus.textContent = 'File Load Failed. Please choose a new file.';
-                }
-            };
-
-            // LOG 10: Before reader.readAsArrayBuffer
-            console.log("LOG 10: Calling reader.readAsArrayBuffer. This triggers the asynchronous file read.");
-            reader.readAsArrayBuffer(file);
-        }
-        // --- END REPAIRED FILE HANDLING WITH LOGGING ---
-
-
         // ---------------------------------------------
-        // --- DEDUPLICATION MODE LOGIC (Main Thread) ---
+        // --- DEDUPLICATION MODE LOGIC (IndexedDB Access) ---
         // ---------------------------------------------
 
-        function startDeduplication() {
+        async function startDeduplication() {
             if (selectedSheets.length !== 1) return;
 
             const sheetName = selectedSheets[0];
-            const originalSheet = sheetData[sheetName];
-            if (!originalSheet || originalSheet.length < 2) {
+            const storeName = ROW_STORE_PREFIX + sheetName;
+            
+            results.style.display = 'none';
+            progress.style.display = 'block';
+            updateProgress(5, `Starting deduplication on sheet: ${sheetName}... (Reading all data from IndexedDB)`);
+
+            const rowsFromDB = await getAllRowsFromStore(storeName);
+            if (rowsFromDB.length < 2) {
                 alert(`Sheet '${sheetName}' is empty or has no data rows.`);
+                progress.style.display = 'none';
                 return;
             }
 
-            results.style.display = 'none';
-            progress.style.display = 'block';
-            updateProgress(5, `Starting deduplication on sheet: ${sheetName}...`);
-
-            const headers = originalSheet[0];
-            const dataRows = originalSheet.slice(1);
+            const headers = rowsFromDB[0];
+            const dataRows = rowsFromDB.slice(1);
+            const totalRows = dataRows.length;
 
             const seenRows = new Set();
             const uniqueRows = [];
             const duplicateRows = [];
             removedDuplicatesCount = 0;
 
-            for (let i = 0; i < dataRows.length; i++) {
+            for (let i = 0; i < totalRows; i++) {
                 const row = dataRows[i];
-                // Since data is now loaded as strings (including dates), the key is robust
+                // Since data is already formatted strings, use JSON.stringify for a robust key
                 const rowKey = JSON.stringify(row.map(cell => String(cell).trim()));
 
                 if (seenRows.has(rowKey)) {
@@ -565,8 +1007,8 @@
                     uniqueRows.push(row);
                 }
                 
-                if (i % 1000 === 0) {
-                    updateProgress(5 + (i / dataRows.length) * 90, `Processing row ${i} of ${dataRows.length}. Found ${removedDuplicatesCount} duplicates.`);
+                if (i % 5000 === 0) {
+                    updateProgress(5 + (i / totalRows) * 90, `Processing row ${i} of ${totalRows}. Found ${removedDuplicatesCount} duplicates.`);
                 }
             }
 
@@ -581,16 +1023,20 @@
             }, 500);
         }
 
+        // ... (displayDeduplicationResults, generateDedupeTable, exportUniqueSheet, exportDuplicateRows remain the same) ...
         function displayDeduplicationResults(sheetName, uniqueRows, duplicateRows, headers) {
             const statsDiv = document.getElementById('stats');
             const matchGroupsDiv = document.getElementById('matchGroups');
             
             results.style.display = 'block';
             groupFiltersDiv.style.display = 'none'; 
+            exportIgnoreControlsDiv.style.display = 'none';
             
+            const originalLength = uniqueRows.length + duplicateRows.length;
+
             statsDiv.innerHTML = `
                 <div class="stat-item">
-                    <div class="stat-value">${sheetData[sheetName].length - 1}</div>
+                    <div class="stat-value">${originalLength}</div>
                     <div class="stat-label">Original Row Count</div>
                 </div>
                 <div class="stat-item">
@@ -610,8 +1056,6 @@
             matchGroupsDiv.innerHTML = '';
             const DISPLAY_LIMIT = 1000;
 
-
-            // --- Section 1: Unique Rows ---
             const uniqueGroupDiv = document.createElement('div');
             uniqueGroupDiv.className = 'match-group';
 
@@ -630,7 +1074,6 @@
             matchGroupsDiv.appendChild(uniqueGroupDiv);
 
 
-            // --- Section 2: Removed Duplicates ---
             if (duplicateRows.length > 0) {
                 const duplicateGroupDiv = document.createElement('div');
                 duplicateGroupDiv.className = 'match-group';
@@ -653,13 +1096,14 @@
 
         function generateDedupeTable(rows, headers, sheetName, limit) {
             let html = '<thead><tr>';
+            html += '<th>Row #</th>';
             headers.forEach((h, i) => { html += `<th>${sheetName}: ${h || 'Col ' + (i + 1)}</th>`; });
             html += '</tr></thead><tbody>';
 
             for (let i = 0; i < Math.min(rows.length, limit); i++) {
                 const row = rows[i];
                 html += '<tr>';
-                // Cell content is now already a string, including formatted dates
+                html += `<td>${i + 2}</td>`; // Display 1-based index (data row starts at index 1 in the AoA, so row 2 in Excel)
                 row.forEach(cell => {
                     html += `<td>${cell || ''}</td>`;
                 });
@@ -670,121 +1114,111 @@
             return html;
         }
 
-        function exportUniqueSheet(sheetName) {
+        window.exportUniqueSheet = function(sheetName) {
             if (!uniqueSheetData) {
                 alert("No unique data is available for export.");
                 return;
             }
 
             const newWb = XLSX.utils.book_new();
-            // Export the formatted strings
             const ws = XLSX.utils.aoa_to_sheet(uniqueSheetData);
             
             const cleanSheetName = sheetName.replace(/[^a-zA-Z0-9]/g, '');
             const fileName = `Deduplicated_${cleanSheetName}_UNIQUE.xlsx`.substring(0, 100);
             
             XLSX.utils.book_append_sheet(newWb, ws, 'Unique Data');
-
             XLSX.writeFile(newWb, fileName);
         }
         
-        function exportDuplicateRows(sheetName) {
+        window.exportDuplicateRows = function(sheetName) {
             if (!duplicateRowsData || duplicateRowsData.length <= 1) {
                 alert("No duplicate data was found for export.");
                 return;
             }
 
             const newWb = XLSX.utils.book_new();
-            // Export the formatted strings
             const ws = XLSX.utils.aoa_to_sheet(duplicateRowsData);
             
             const cleanSheetName = sheetName.replace(/[^a-zA-Z0-9]/g, '');
             const fileName = `Deduplicated_${cleanSheetName}_DUPLICATES.xlsx`.substring(0, 100);
             
             XLSX.utils.book_append_sheet(newWb, ws, 'Duplicate Rows');
-
             XLSX.writeFile(newWb, fileName);
         }
 
-        // --- Pre-Cleaning Function for Source Sheets ---
+        // --- Pre-Cleaning Function for Source Sheets (Now done by the worker) ---
+        // This client-side function is kept for local-in-memory processing *after* DB read, if needed,
+        // but for this implementation, the actual pre-cleaning is better handled inside the matching worker.
+        // I will keep a simplified local version that expects the full AoA:
         function preCleanComparisonData(originalData) {
             const headers = originalData[0];
             const dataRows = originalData.slice(1);
             
             const seenRows = new Set();
             const cleanedRows = [];
-            const originalRowMap = {}; // Maps 0-based index of CLEANED DATA to 1-based index of ORIGINAL DATA (after header)
+            const originalRowMap = {}; 
+            let duplicatesRemoved = 0;
 
             for (let i = 0; i < dataRows.length; i++) {
-                const originalRowIndex = i + 1; // 1-based index for the actual data row (after header)
+                const originalRowIndex = i + 1; 
                 const row = dataRows[i];
                 const rowKey = JSON.stringify(row.map(cell => String(cell).trim()));
 
                 if (seenRows.has(rowKey)) {
-                    // Do nothing for duplicates
+                    duplicatesRemoved++;
                 } else {
                     seenRows.add(rowKey);
                     cleanedRows.push(row);
                     // Map the index of the newly added clean row (0-based) to its original sheet row index (1-based)
-                    originalRowMap[cleanedRows.length - 1] = originalRowIndex; 
+                    originalRowMap[cleanedRows.length] = originalRowIndex; 
                 }
             }
             
             return {
                 cleanedData: [headers, ...cleanedRows],
                 originalRowMap: originalRowMap,
-                duplicatesRemoved: dataRows.length - cleanedRows.length
+                duplicatesRemoved: duplicatesRemoved
             };
         }
 
 
         // ---------------------------------------------
-        // --- COMPARISON MODE LOGIC (Web Worker) ---
+        // --- COMPARISON MODE LOGIC (Web Worker - IndexedDB Access) ---
         // ---------------------------------------------
 
         function setupWorker() {
+            // NOTE: The worker now includes IndexedDB access logic to read data asynchronously.
             const workerScript = `
-                // --- UTILITY FUNCTIONS (Must be defined inside the worker) ---
+                importScripts('https://cdn.jsdelivr.net/npm/idb@7.1.1/build/umd.js');
+                
+                const DB_NAME = 'ExcelDataUtilityDB';
+                const ROW_STORE_PREFIX = 'Sheet_';
+                const METADATA_STORE_NAME = 'SheetMetadata';
+                const DB_VERSION = 2; // Match main thread
 
-                // Aggressive normalization (only letters and numbers, now character order-independent)
+                // --- UTILITY FUNCTIONS (Must be defined inside the worker) ---
                 function normalizeKey(val) {
-                    // 1. Convert to string, lowercase, and remove non-alphanumeric
                     const cleaned = String(val || '')
                         .toLowerCase()
-                        .replace(/[^a-z0-9]/g, '')
-                        .trim();
-                    
-                    // 2. Sort the characters to make it order-independent
+                        .replace(/[^a-z0-9]/g, '') 
+                        .trim(); 
                     return cleaned.split('').sort().join('');
                 }
-
-                // Standard normalization (lowercase, trim, preserves symbols/spaces)
                 function standardKey(val) {
                     return String(val || '').toLowerCase().trim();
                 }
-
-                // Function to select the appropriate key based on the option
                 function getComparisonKey(val, useRobust) {
-                    // If robust is enabled, we use the aggressive key
-                    // Otherwise, we use the standard key
                     return useRobust ? normalizeKey(val) : standardKey(val);
                 }
-
                 function levenshteinDistance(str1, str2) {
-                    // These strings are already standardized via standardKey() (toLowerCase.trim())
                     const s1 = str1;
                     const s2 = str2;
-                    
                     const matrix = [];
                     for (let i = 0; i <= s2.length; i++) { matrix[i] = [i]; }
                     for (let j = 0; j <= s1.length; j++) { matrix[0][j] = j; }
-
                     for (let i = 1; i <= s2.length; i++) {
                         for (let j = 1; j <= s1.length; j++) {
                             if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
-                                matrix[i][j] = matrix[i - 1][j - 1];
-                            }
-                                else if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
                                 matrix[i][j] = matrix[i - 1][j - 1];
                             } else {
                                 matrix[i][j] = Math.min(
@@ -797,91 +1231,72 @@
                     }
                     return matrix[s2.length][s1.length];
                 }
-
-                // isMatch is ONLY used for Levenshtein (Fuzzy) comparison.
                 function isMatch(val1, val2, useFuzzy, threshold) {
-                    
                     if (!useFuzzy) return { isMatch: false, isFuzzy: false };
-                    
-                    // Use the standard key for Levenshtein distance calculation 
                     const str1 = standardKey(val1); 
                     const str2 = standardKey(val2); 
-
                     if (!str1 || !str2) return { isMatch: false, isFuzzy: false };
-                    
                     const maxLen = Math.max(str1.length, str2.length);
-                    // Handle edge case where maxLen is 0 (should be caught by key check, but safety)
                     if (maxLen === 0) return { isMatch: true, isFuzzy: false }; 
-
                     const maxAllowedDistance = Math.floor(maxLen * (threshold / 100));
-
-                    // Optimization: if length difference is too high, skip distance calculation
                     if (Math.abs(str1.length - str2.length) > maxAllowedDistance) {
                         return { isMatch: false, isFuzzy: false };
                     }
-
                     const distance = levenshteinDistance(str1, str2);
-                    
                     if (distance <= maxAllowedDistance) {
-                        // The match is fuzzy, as the exact/robust check failed already
                         return { isMatch: true, isFuzzy: true }; 
                     }
-                    
                     return { isMatch: false, isFuzzy: false };
                 }
                 
-                // --- CORE MATCHING LOGIC (All Columns) ---
-                
+                // --- Core IndexedDB Row Reader ---
+                async function getAllRowsFromStore(db, storeName) {
+                    const rows = [];
+                    let cursor = await db.transaction(storeName).store.openCursor();
+                    while (cursor) {
+                        rows.push(cursor.value.data); // data is the row array
+                        cursor = await cursor.continue();
+                    }
+                    return rows;
+                }
+
+                // --- Core Comparison Logic ---
                 function findMatchesInColumns(sheet1, sheet2, col1, col2, useFuzzy, threshold, robustExactMatch) {
                     const matches = [];
-                    // row1Data/row2Data are the data rows (excluding header), 0-indexed relative to data rows
                     const row1Data = sheet1.slice(1); 
                     const row2Data = sheet2.slice(1); 
                     let groupHasFuzzy = false; 
 
-                    // keyMap2 stores the comparison key (robust or standard) to its list of row details
                     const keyMap2 = new Map();
                     for (let j = 0; j < row2Data.length; j++) {
                         const val = row2Data[j][col2]; 
-                        const key = getComparisonKey(val, robustExactMatch); // <--- Use conditional key
+                        const key = getComparisonKey(val, robustExactMatch); 
                         if (!key) continue;
-                        
-                        if (!keyMap2.has(key)) {
-                            keyMap2.set(key, []);
-                        }
-                        // Store the original row index (1-based) and the original value for display/fuzzy check
+                        if (!keyMap2.has(key)) { keyMap2.set(key, []); }
+                        // Store the 1-based index (data starts at row 2 in DB, but this data is post-slicing (dataRows), so add 1)
                         keyMap2.get(key).push({ rowIndex: j + 1, originalValue: val }); 
                     }
 
-                    // A set to track row pairs already matched by the exact/robust exact check
                     const matchedExactly = new Set(); 
 
                     for (let i = 0; i < row1Data.length; i++) {
                         const val1 = row1Data[i][col1];
-                        const key1 = getComparisonKey(val1, robustExactMatch); // <--- Use conditional key for lookup
+                        const key1 = getComparisonKey(val1, robustExactMatch); 
                         if (!key1) continue;
                         
                         const row1Index = i + 1; 
 
-                        // 1. Exact Match Lookup (using the robust or standard normalized key)
+                        // 1. Exact Match Lookup
                         if (keyMap2.has(key1)) {
                             for (const entry of keyMap2.get(key1)) {
                                 const row2Index = entry.rowIndex;
                                 
                                 const pairKey = \`\${row1Index}-\${row2Index}\`;
-                                if (!matchedExactly.has(pairKey)) { // Check for duplicates in map if multiple rows map to same key
-                                    // Add the match (isFuzzy: false)
+                                if (!matchedExactly.has(pairKey)) { 
                                     matches.push({ 
-                                        row1: row1Index, 
-                                        row2: row2Index, 
-                                        val1: val1, // Original value for display
-                                        val2: entry.originalValue, // Original value for display
-                                        data1: row1Data[i], 
-                                        data2: row2Data[row2Index - 1],
-                                        isFuzzy: false 
+                                        row1: row1Index, row2: row2Index, val1: val1, val2: entry.originalValue, 
+                                        data1: row1Data[i], data2: row2Data[row2Index - 1], isFuzzy: false 
                                     });
-                                    
-                                    // Mark this pair as matched exactly
                                     matchedExactly.add(pairKey);
                                 }
                             }
@@ -889,28 +1304,19 @@
 
                         // 2. Fuzzy Match (If enabled)
                         if (useFuzzy) {
-                             // Iterate through all entries to check for fuzzy matches
                             for (const [_, row2Entries] of keyMap2.entries()) {
                                 for (const entry of row2Entries) {
                                     const row2Index = entry.rowIndex;
                                     const pairKey = \`\${row1Index}-\${row2Index}\`;
                                     
-                                    // Skip if already found in the exact/robust exact match
-                                    if (matchedExactly.has(pairKey)) {
-                                        continue;
-                                    }
+                                    if (matchedExactly.has(pairKey)) { continue; }
 
                                     const matchResult = isMatch(val1, entry.originalValue, useFuzzy, threshold);
                                     
                                     if (matchResult.isMatch && matchResult.isFuzzy) { 
                                         matches.push({ 
-                                            row1: row1Index, 
-                                            row2: row2Index, 
-                                            val1: val1, 
-                                            val2: entry.originalValue, 
-                                            data1: row1Data[i], 
-                                            data2: row2Data[row2Index - 1],
-                                            isFuzzy: true 
+                                            row1: row1Index, row2: row2Index, val1: val1, val2: entry.originalValue, 
+                                            data1: row1Data[i], data2: row2Data[row2Index - 1], isFuzzy: true 
                                         });
                                         groupHasFuzzy = true; 
                                     }
@@ -922,35 +1328,110 @@
                     return { matches: matches, hasFuzzy: groupHasFuzzy }; 
                 }
 
-                // --- Worker Event Handler (Full Sheet Comparison) ---
-                self.onmessage = function(e) {
+                // --- Pre-Cleaning Logic (simplified version in worker) ---
+                function preCleanComparisonData(originalData) {
+                    const headers = originalData[0];
+                    const dataRows = originalData.slice(1);
+                    
+                    const seenRows = new Set();
+                    const cleanedRows = [];
+                    const originalRowMap = {}; 
+                    let duplicatesRemoved = 0;
+
+                    for (let i = 0; i < dataRows.length; i++) {
+                        const originalRowIndex = i + 1; 
+                        const row = dataRows[i];
+                        const rowKey = JSON.stringify(row.map(cell => String(cell).trim()));
+
+                        if (seenRows.has(rowKey)) {
+                            duplicatesRemoved++;
+                        } else {
+                            seenRows.add(rowKey);
+                            cleanedRows.push(row);
+                            originalRowMap[cleanedRows.length] = originalRowIndex; 
+                        }
+                    }
+                    
+                    return {
+                        cleanedData: [headers, ...cleanedRows],
+                        originalRowMap: originalRowMap,
+                        duplicatesRemoved: duplicatesRemoved
+                    };
+                }
+
+                // --- Worker Event Handler (Reads from IndexedDB) ---
+                self.onmessage = async function(e) {
                     try {
-                        const { sheetData, originalMaps, selectedSheetNames, params } = e.data; 
-                        const { useFuzzy, fuzzyThreshold, removeDuplicates, isTargeted, col1Index, col2Index, robustExactMatch } = params; // NEW PARAMETER
+                        const { selectedSheetNames, params } = e.data; 
+                        const { useFuzzy, fuzzyThreshold, removeDuplicates, isTargeted, col1Index, col2Index, robustExactMatch, ignoredCols1, ignoredCols2, dedupeSourceSheets } = params; 
                         
                         const tab1 = selectedSheetNames[0];
                         const tab2 = selectedSheetNames[1];
+                        
+                        self.postMessage({ type: 'progress', percent: 10, text: 'Worker: Connecting to IndexedDB and reading data...' });
 
-                        const info1 = { sheet: sheetData[tab1], headers: sheetData[tab1][0] || [] };
-                        const info2 = { sheet: sheetData[tab2], headers: sheetData[tab2][0] || [] };
+                        // The worker opens the DB at version 2, which should now be correct
+                        const db = await idb.openDB(DB_NAME, DB_VERSION);
                         
-                        const numCols1 = info1.headers.length || (info1.sheet.length > 1 ? info1.sheet[1].length : 0);
-                        const numCols2 = info2.headers.length || (info2.sheet.length > 1 ? info2.sheet[1].length : 0);
+                        // 1. Fetch ALL rows for both sheets from DB
+                        let sheet1Raw = await getAllRowsFromStore(db, ROW_STORE_PREFIX + tab1);
+                        let sheet2Raw = await getAllRowsFromStore(db, ROW_STORE_PREFIX + tab2);
+
+                        db.close(); // Close connection once data is in memory
+
+                        self.postMessage({ type: 'progress', percent: 15, text: 'Worker: Data loaded into memory. Applying pre-cleaning...' });
                         
-                        // DETERMINE LOOPS BASED ON MODE
-                        const loopCol1 = isTargeted ? [col1Index] : Array.from({ length: numCols1 }, (_, i) => i);
-                        const loopCol2 = (isTargeted && col2Index !== 'all') 
-                                         ? [parseInt(col2Index)] 
-                                         : Array.from({ length: numCols2 }, (_, i) => i);
+                        let clean1 = { cleanedData: sheet1Raw, originalRowMap: {}, duplicatesRemoved: 0 };
+                        let clean2 = { cleanedData: sheet2Raw, originalRowMap: {}, duplicatesRemoved: 0 };
                         
+                        // NOTE: Row 0 in sheetRaw is the header. The actual data starts at index 1. 
+                        // The original row index in the raw sheet is its array index.
+                        const headers1 = sheet1Raw[0];
+                        const headers2 = sheet2Raw[0];
+                        
+                        // 2. Apply Pre-cleaning if enabled
+                        if (dedupeSourceSheets) {
+                            clean1 = preCleanComparisonData(sheet1Raw);
+                            clean2 = preCleanComparisonData(sheet2Raw);
+                            self.postMessage({ 
+                                type: 'progress', percent: 20, 
+                                text: \`Worker: Pre-Clean complete. \${tab1}: -\${clean1.duplicatesRemoved}. \${tab2}: -\${clean2.duplicatesRemoved}\` 
+                            });
+                        } else {
+                            // If no pre-cleaning, set up simple 1:1 row map (index is the original row number)
+                            clean1.originalRowMap = Array.from({ length: sheet1Raw.length - 1 }, (_, i) => i + 1);
+                            clean2.originalRowMap = Array.from({ length: sheet2Raw.length - 1 }, (_, i) => i + 1);
+                        }
+
+                        // 3. Setup comparison loops
+                        const numCols1 = headers1.length;
+                        const numCols2 = headers2.length;
+                        
+                        let loopCol1 = [];
+                        let loopCol2 = [];
+                        const allCols1 = Array.from({ length: numCols1 }, (_, i) => i);
+                        const allCols2 = Array.from({ length: numCols2 }, (_, i) => i);
+
+                        if (isTargeted) {
+                            loopCol1 = [col1Index]; 
+                            if (col2Index === 'all') {
+                                loopCol2 = allCols2.filter(colIndex => !ignoredCols2.includes(colIndex));
+                            } else {
+                                loopCol2 = [parseInt(col2Index)];
+                            }
+                        } else {
+                            loopCol1 = allCols1.filter(colIndex => !ignoredCols1.includes(colIndex));
+                            loopCol2 = allCols2.filter(colIndex => !ignoredCols2.includes(colIndex));
+                        }
+
                         const totalComparisons = loopCol1.length * loopCol2.length;
-                        
-                        self.postMessage({ type: 'progress', percent: 15, text: \`Worker: Ready to analyze \${totalComparisons} column combinations...\` });
+                        self.postMessage({ type: 'progress', percent: 25, text: \`Worker: Ready to analyze \${totalComparisons} column combinations...\` });
 
                         let allMatches = [];
                         let completedComparisons = 0;
                         let matchesFound = 0;
                         
+                        // 4. Run Comparisons
                         for (const col1 of loopCol1) {
                             for (const col2 of loopCol2) {
                                 
@@ -960,21 +1441,19 @@
                                 }
 
                                 let matchResult = findMatchesInColumns(
-                                    info1.sheet, info2.sheet, col1, col2, 
-                                    useFuzzy, fuzzyThreshold, robustExactMatch // Pass new parameter
+                                    clean1.cleanedData, clean2.cleanedData, col1, col2, 
+                                    useFuzzy, fuzzyThreshold, robustExactMatch
                                 );
                                 
                                 let matches = matchResult.matches;
                                 let hasFuzzy = matchResult.hasFuzzy; 
 
-                                // --- CROSS-SHEET DEDUPLICATION LOGIC ---
+                                // Cross-Sheet Deduplication (Rows in Sheet1 linked to Rows in Sheet2)
                                 if (removeDuplicates) {
                                     const uniqueMatches = [];
                                     const seen = new Set();
-                                    
                                     for (const match of matches) {
                                         const key = \`\${match.row1}-\${match.row2}\`; 
-                                        
                                         if (!seen.has(key)) {
                                             seen.add(key);
                                             uniqueMatches.push(match);
@@ -982,18 +1461,15 @@
                                     }
                                     matches = uniqueMatches;
                                 }
-                                // --- END DEDUPLICATION LOGIC ---
-
 
                                 if (matches.length > 0) {
                                     allMatches.push({
-                                        tab1, tab2,
-                                        col1, col2,
-                                        header1: info1.headers[col1] || 'Col ' + (col1 + 1),
-                                        header2: info2.headers[col2] || 'Col ' + (col2 + 1),
+                                        tab1, tab2, col1, col2,
+                                        header1: headers1[col1] || 'Col ' + (col1 + 1),
+                                        header2: headers2[col2] || 'Col ' + (col2 + 1),
                                         matches,
-                                        headers1: info1.headers,
-                                        headers2: info2.headers,
+                                        headers1: headers1,
+                                        headers2: headers2,
                                         hasFuzzyMatches: hasFuzzy 
                                     });
                                     matchesFound += matches.length;
@@ -1001,7 +1477,7 @@
 
                                 completedComparisons++;
                                 
-                                const percent = 15 + (completedComparisons / totalComparisons) * 80;
+                                const percent = 25 + (completedComparisons / totalComparisons) * 70;
                                 
                                 if (completedComparisons % 10 === 0 || completedComparisons === totalComparisons) {
                                     self.postMessage({ 
@@ -1013,34 +1489,21 @@
                             }
                         }
                         
-                        // --- Map Cleaned Row Index back to Original Row Index ---
+                        // 5. Map Cleaned Row Index back to Original Row Index
                         for (const group of allMatches) {
                             for (const match of group.matches) {
-                                // The rowX properties are 1-based index in the CLEANED data.
-                                // The map keys are the 0-based index of the CLEANED data rows (index: match.rowX - 1).
-                                
-                                if (originalMaps[tab1]) {
-                                    match.originalRow1 = originalMaps[tab1][match.row1 - 1]; 
-                                } else {
-                                    // If not cleaned, original row is the same as the current row (1-based index)
-                                    match.originalRow1 = match.row1;
-                                }
-                                
-                                if (originalMaps[tab2]) {
-                                    match.originalRow2 = originalMaps[tab2][match.row2 - 1];
-                                } else {
-                                    match.originalRow2 = match.row2;
-                                }
+                                // Match.rowX is the 1-based index in the *cleaned* data array (1 to cleanedData.length)
+                                // originalRowMap is { cleaned_1_based_index: original_1_based_index }
+                                match.originalRow1 = clean1.originalRowMap[match.row1];
+                                match.originalRow2 = clean2.originalRowMap[match.row2];
                             }
                         }
-                        // --- END MAPPING ---
-
-
+                        
                         self.postMessage({ type: 'result', allMatches: allMatches });
                     } catch (error) {
                         self.postMessage({ 
                             type: 'error', 
-                            message: 'Worker crashed: ' + error.message, 
+                            message: 'Matching Worker crashed: ' + error.message, 
                             stack: error.stack 
                         });
                     }
@@ -1085,7 +1548,6 @@
             };
         }
 
-        // NEW unified function for both modes
         function startMatching(isTargeted) {
             if (selectedSheets.length !== 2) {
                 alert('Please select exactly two sheets to compare.');
@@ -1099,67 +1561,44 @@
             
             setupWorker();
             
-            const dedupeEnabled = dedupeSourceSheets.checked;
+            const ignoredCols1 = getCheckedColumnIndices(ignoreCols1Container);
+            const ignoredCols2 = getCheckedColumnIndices(ignoreCols2Container);
 
-            let clean1 = { cleanedData: sheetData[selectedSheets[0]], originalRowMap: null, duplicatesRemoved: 0 };
-            let clean2 = { cleanedData: sheetData[selectedSheets[1]], originalRowMap: null, duplicatesRemoved: 0 };
-
-            if (dedupeEnabled) {
-                clean1 = preCleanComparisonData(sheetData[selectedSheets[0]]);
-                clean2 = preCleanComparisonData(sheetData[selectedSheets[1]]);
-            }
 
             const params = {
                 useFuzzy: fuzzyMatch.checked,
                 fuzzyThreshold: parseInt(document.getElementById('fuzzyThreshold').value),
                 removeDuplicates: removeDuplicates.checked,
-                robustExactMatch: robustExactMatch.checked, // PASS NEW PARAMETER
+                robustExactMatch: robustExactMatch.checked, 
+                dedupeSourceSheets: dedupeSourceSheets.checked,
                 
-                // NEW MODE PARAMETERS
+                ignoredCols1: ignoredCols1, 
+                ignoredCols2: ignoredCols2, 
+                
                 isTargeted: isTargeted, 
                 col1Index: isTargeted ? parseInt(column1Selector.value) : null,
-                col2Index: isTargeted ? column2Selector.value : null // 'all' or index string
+                col2Index: isTargeted ? column2Selector.value : null 
             };
             
-            // Collect status for display
-            const statusText = [];
-            if (clean1.duplicatesRemoved > 0) statusText.push(`${selectedSheets[0]}: ${clean1.duplicatesRemoved} duplicates removed.`);
-            if (clean2.duplicatesRemoved > 0) statusText.push(`${selectedSheets[1]}: ${clean2.duplicatesRemoved} duplicates removed.`);
-            const statusPrefix = statusText.length > 0 ? `Sheets cleaned! ${statusText.join(' ')} ` : '';
-
-            const modeText = isTargeted ? 'Targeted Match' : 'Exhaustive Match';
-            updateProgress(10, `${statusPrefix}Worker started. Running ${modeText} between ${selectedSheets[0]} and ${selectedSheets[1]}...`);
-
+            updateProgress(10, `Worker started. Running comparison on data loaded from IndexedDB...`);
 
             matchingWorker.postMessage({
-                // Send the potentially cleaned data
-                sheetData: {
-                    [selectedSheets[0]]: clean1.cleanedData,
-                    [selectedSheets[1]]: clean2.cleanedData
-                },
-                // Send the mapping for row tracing
-                originalMaps: {
-                    [selectedSheets[0]]: clean1.originalRowMap,
-                    [selectedSheets[1]]: clean2.originalRowMap
-                },
                 selectedSheetNames: selectedSheets,
                 params: params
             });
         }
         
-        // --- NEW FUNCTION: Populate the Header Dropdown ---
+        // ... (The rest of the result rendering and export functions remain the same) ...
         function populateHeaderSelector() {
             const selector = document.getElementById('headerSelector');
             selector.innerHTML = '<option value="all">--- Show All Column Pairs ---</option>'; // Reset
 
             const uniquePairs = new Set();
             allMatches.forEach(group => {
-                // Key that holds the necessary info for filtering and display
                 const filterValue = `${group.tab1}|${group.col1}|${group.tab2}|${group.col2}`;
                 uniquePairs.add(filterValue);
             });
 
-            // Prepare for sorting and display
             const sortedPairs = Array.from(uniquePairs).map(filterValue => {
                 const parts = filterValue.split('|');
                 const tab1 = parts[0];
@@ -1167,16 +1606,14 @@
                 const tab2 = parts[2];
                 const col2 = parseInt(parts[3]);
                 
-                // Get the actual header name from the sheetData using the column index
-                const header1 = sheetData[tab1][0][col1] || 'Col ' + (col1 + 1);
-                const header2 = sheetData[tab2][0][col2] || 'Col ' + (col2 + 1);
+                const header1 = sheetHeaders[tab1][col1] || 'Col ' + (col1 + 1);
+                const header2 = sheetHeaders[tab2][col2] || 'Col ' + (col2 + 1);
                 
                 const displayText = `${header1} ↔️ ${header2} (${tab1} vs ${tab2})`;
                 
                 return { filterValue, displayText };
             }).sort((a, b) => a.displayText.localeCompare(b.displayText));
 
-            // Populate the selector
             sortedPairs.forEach(pair => {
                 const option = document.createElement('option');
                 option.value = pair.filterValue;
@@ -1184,9 +1621,7 @@
                 selector.appendChild(option);
             });
         }
-        // --- END NEW FUNCTION ---
-
-
+        
         function filterAndDisplayResults() {
             
             const selectedHeaderPair = headerSelector.value; 
@@ -1195,21 +1630,17 @@
             const showFuzzyOnly = filterFuzzyCheckbox.checked;
 
             const filteredMatches = allMatches.filter(group => {
-                // 1. Match Count Filter
                 if (group.matches.length < minCount || group.matches.length > maxCount) {
                     return false;
                 }
                 
-                // 2. Column Header Filter (Dropdown) 
                 if (selectedHeaderPair !== 'all') {
-                    // Create the filter key for the current group
                     const groupFilterValue = `${group.tab1}|${group.col1}|${group.tab2}|${group.col2}`;
                     if (groupFilterValue !== selectedHeaderPair) {
                         return false;
                     }
                 }
 
-                // 3. Fuzzy/Exact Match Toggle Filter
                 if (showFuzzyOnly && !group.hasFuzzyMatches) {
                     return false;
                 }
@@ -1240,12 +1671,24 @@
                 </div>
             `;
             
+            allMatches.forEach((group, groupIdx) => {
+                group.matches.forEach((match, matchIdx) => {
+                    if (typeof match.keep === 'undefined') {
+                        match.keep = true;
+                    }
+                    match.__originalIndex = matchIdx; 
+                });
+            });
+
             populateHeaderSelector(); 
             groupFiltersDiv.style.display = 'block';
             results.style.display = 'block';
             exportAllBtn.style.display = 'block';
             
-            // Initial render using global filters
+            if (allMatches.length > 0) {
+                populateExportIgnoreSelectors(allMatches[0]);
+            }
+            
             filterAndDisplayResults(); 
         }
 
@@ -1254,7 +1697,11 @@
             const matchGroupsDiv = document.getElementById('matchGroups');
             matchGroupsDiv.innerHTML = '';
             
-            exportAllBtn.textContent = `Export ALL (${allMatches.length}) Match Groups to a Single Workbook`;
+            const totalSelectedMatches = allMatches.reduce((sum, group) => {
+                return sum + group.matches.filter(m => m.keep).length;
+            }, 0);
+            
+            exportAllBtn.textContent = `Export ALL Selected Match Rows (${totalSelectedMatches} rows) to a Single Workbook`;
             
             if (matchesToRender.length === 0) {
                  matchGroupsDiv.innerHTML = `<div class="info" style="background: #e74c3c;">❌ No match groups found matching the current filters.</div>`;
@@ -1265,7 +1712,6 @@
             
             matchesToRender.forEach((group, idx) => {
                 
-                // Find the original index for persistent filtering/export
                 const originalIndex = allMatches.findIndex(g => 
                     g.tab1 === group.tab1 && g.col1 === group.col1 && g.tab2 === group.tab2 && g.col2 === group.col2
                 );
@@ -1276,9 +1722,6 @@
                 
                 const tabInfo = `<span class="tab-badge">${group.tab1}</span> ↔️ <span class="tab-badge">${group.tab2}</span>`;
                 
-                const displayCount = Math.min(group.matches.length, DISPLAY_LIMIT);
-                
-                // Use the unfiltered total count for the export button, but update the info text
                 const unfilteredTotal = allMatches[originalIndex].matches.length;
                 let infoText = `Found **${unfilteredTotal}** matching row${unfilteredTotal !== 1 ? 's' : ''}`;
                 if (unfilteredTotal > DISPLAY_LIMIT) {
@@ -1288,7 +1731,13 @@
                 groupDiv.innerHTML = `
                     <div class="match-header">
                         <div class="dedupe-group-title">Match Group ${idx + 1}: ${tabInfo}</div>
-                        <button class="btn export-btn" onclick="window.exportMatchGroup(${originalIndex})">Export This Match Group (${unfilteredTotal} rows)</button>
+                        <div style="display: flex; align-items: center;">
+                            <button class="btn export-btn" style="background: linear-gradient(135deg, #f06, #c03); padding: 10px 15px;" 
+                                onclick="window.toggleAllExportRows(${originalIndex}, false)">Deselect All</button>
+                            <button class="btn export-btn" style="background: linear-gradient(135deg, #00ffaa, #00cc88); padding: 10px 15px;" 
+                                onclick="window.toggleAllExportRows(${originalIndex}, true)">Select All</button>
+                            <button class="btn export-btn" onclick="window.exportMatchGroup(${originalIndex})">Export This Group</button>
+                        </div>
                     </div>
                     <div class="match-info" id="matchInfo_${originalIndex}">
                         Match Field: <strong>${group.header1}</strong> ↔️ <strong>${group.header2}</strong>
@@ -1316,7 +1765,7 @@
                     </div>
                     <div class="table-container" id="tableContainer_${originalIndex}">
                         <table>
-                            ${generateMatchTable(group, displayCount)}
+                            ${generateMatchTable(group, DISPLAY_LIMIT)}
                         </table>
                     </div>
                 `;
@@ -1325,15 +1774,12 @@
             });
         }
         
-        // Function to filter and re-render a single match group table
         window.filterAndRenderGroup = function(groupIndex) {
             const group = allMatches[groupIndex];
             if (!group) return;
             
-            // We apply filters against the complete set of matches stored in allMatches
             const sourceMatches = allMatches[groupIndex].matches;
 
-            // 1. Get filter values
             const filterText = document.getElementById(`filterText_${groupIndex}`).value.toLowerCase().trim();
             const filterRow1Input = document.getElementById(`filterRow1_${groupIndex}`).value;
             const filterRow2Input = document.getElementById(`filterRow2_${groupIndex}`).value;
@@ -1341,29 +1787,22 @@
             const filterRow1 = parseInt(filterRow1Input);
             const filterRow2 = parseInt(filterRow2Input);
             
-            // 2. Apply filters
             const filteredMatches = sourceMatches.filter(match => {
                 
-                // --- Full-Text Filter ---
                 if (filterText) {
-                    // Check match key values
                     if (String(match.val1).toLowerCase().includes(filterText) || String(match.val2).toLowerCase().includes(filterText)) {
-                        // Pass if match key contains text
                     } else {
-                        // Check all data cells
                         const combinedData = [...match.data1, ...match.data2].map(String).join(' ').toLowerCase();
                         if (!combinedData.includes(filterText)) {
-                            return false; // Does not match full-text search
+                            return false; 
                         }
                     }
                 }
                 
-                // --- Row Index Filter (Sheet 1) ---
                 if (filterRow1Input && !isNaN(filterRow1) && filterRow1 > 0 && match.originalRow1 !== filterRow1) {
                     return false;
                 }
                 
-                // --- Row Index Filter (Sheet 2) ---
                 if (filterRow2Input && !isNaN(filterRow2) && filterRow2 > 0 && match.originalRow2 !== filterRow2) {
                     return false;
                 }
@@ -1371,18 +1810,15 @@
                 return true;
             });
 
-            // 3. Update info text
             const matchInfoDiv = document.getElementById(`matchInfo_${groupIndex}`);
             const DISPLAY_LIMIT = 1000; 
             const totalMatches = filteredMatches.length;
-            const displayCount = Math.min(totalMatches, DISPLAY_LIMIT);
+            const sourceTotal = sourceMatches.length;
 
             let infoText = `Found **${totalMatches}** matching row${totalMatches !== 1 ? 's' : ''}`;
-            if (totalMatches !== sourceMatches.length) {
-                // If the filter is active, show the filtered count
+            if (totalMatches !== sourceTotal) {
                 infoText += ` (Filtered View)`;
             } else if (totalMatches > DISPLAY_LIMIT) {
-                 // If no filter is active but we hit the display limit
                 infoText += ` (Displaying first ${DISPLAY_LIMIT})`;
             }
             
@@ -1391,21 +1827,50 @@
                 <br>${infoText}
             `;
 
-            // 4. Re-render the table
             const tableContainer = document.getElementById(`tableContainer_${groupIndex}`);
-            // Create a temporary group object with the filtered matches
             const tempGroup = { ...group, matches: filteredMatches };
             tableContainer.innerHTML = `
                 <table>
-                    ${generateMatchTable(tempGroup, displayCount)}
+                    ${generateMatchTable(tempGroup, DISPLAY_LIMIT)}
                 </table>
             `;
         }
+        
+        window.toggleExportRow = function(checkboxElement) {
+            const isChecked = checkboxElement.checked;
+            const groupIdx = parseInt(checkboxElement.getAttribute('data-group-idx'));
+            const matchIdx = parseInt(checkboxElement.getAttribute('data-match-original-idx'));
+            
+            if (allMatches[groupIdx] && allMatches[groupIdx].matches[matchIdx]) {
+                allMatches[groupIdx].matches[matchIdx].keep = isChecked;
+                
+                const totalSelectedMatches = allMatches.reduce((sum, group) => {
+                    return sum + group.matches.filter(m => m.keep).length;
+                }, 0);
+                exportAllBtn.textContent = `Export ALL Selected Match Rows (${totalSelectedMatches} rows) to a Single Workbook`;
+            }
+        }
+        
+        window.toggleAllExportRows = function(groupIdx, shouldKeep) {
+            if (!allMatches[groupIdx]) return;
+            
+            allMatches[groupIdx].matches.forEach(match => {
+                match.keep = shouldKeep;
+            });
+            
+            filterAndDisplayResults();
+            
+            const totalSelectedMatches = allMatches.reduce((sum, group) => {
+                return sum + group.matches.filter(m => m.keep).length;
+            }, 0);
+            exportAllBtn.textContent = `Export ALL Selected Match Rows (${totalSelectedMatches} rows) to a Single Workbook`;
+        }
+
 
         function generateMatchTable(group, limit) {
             
-            // Header row now includes Original Row #
             const allHeaders = [
+                'Export',
                 `${group.tab1}: Row #`,
                 ...group.headers1.map((h, i) => `${group.tab1}: ${h || 'Col ' + (i + 1)}`),
                 `${group.tab2}: Row #`,
@@ -1415,28 +1880,37 @@
             let html = '<thead><tr>';
             allHeaders.forEach(h => { html += `<th>${h}</th>`; });
             html += '</tr></thead><tbody>';
+            
+            const originalGroupIndex = allMatches.findIndex(g => 
+                g.tab1 === group.tab1 && g.col1 === group.col1 && g.tab2 === group.tab2 && g.col2 === group.col2
+            );
 
             for (let i = 0; i < Math.min(group.matches.length, limit); i++) {
                 const match = group.matches[i];
                 const data1 = match.data1; 
                 const data2 = match.data2;
+                
+                const isChecked = match.keep;
+                const originalMatchIndex = match.__originalIndex;
 
                 html += '<tr>';
                 
-                // Original Row Number for Sheet 1
-                html += `<td><strong>${match.originalRow1}</strong></td>`;
+                html += `<td style="text-align: center;">
+                    <input type="checkbox" data-group-idx="${originalGroupIndex}" data-match-original-idx="${originalMatchIndex}"
+                           ${isChecked ? 'checked' : ''} 
+                           onclick="window.toggleExportRow(this)">
+                </td>`;
                 
-                // Data 1 columns (content is already formatted string)
+                html += `<td style="text-align: center;"><strong>${match.originalRow1}</strong></td>`;
+                
                 data1.forEach((cell, idx) => {
                     const isHighlight = idx === group.col1;
                     const content = cell || '';
                     html += `<td>${isHighlight ? `<span class="highlight">${content}</span>` : content}</td>`;
                 });
                 
-                // Original Row Number for Sheet 2
                 html += `<td><strong>${match.originalRow2}</strong></td>`;
 
-                // Data 2 columns (content is already formatted string)
                 data2.forEach((cell, idx) => {
                     const isHighlight = idx === group.col2;
                     const content = cell || '';
@@ -1452,60 +1926,115 @@
         
         // --- EXPORT FUNCTIONS (Comparison Mode) ---
         
-        function prepareExportData(group) {
-             // Export headers now include original row numbers
-             const allHeaders = [
+        const filterRow = (rowData, ignoredIndices) => {
+            return rowData.filter((_, i) => !ignoredIndices.includes(i));
+        };
+
+        function prepareExportData(group, ignoredCols1 = [], ignoredCols2 = []) {
+            
+            const filteredHeaders1 = group.headers1.filter((_, i) => !ignoredCols1.includes(i));
+            const filteredHeaders2 = group.headers2.filter((_, i) => !ignoredCols2.includes(i));
+            
+            const allHeaders = [
                 `${group.tab1}_Original_Row_Num`,
-                ...group.headers1.map((h, i) => `${group.tab1}_${h || 'Col' + (i + 1)}`),
+                ...filteredHeaders1.map(h => `${group.tab1}_${h}`), 
                 `${group.tab2}_Original_Row_Num`,
-                ...group.headers2.map((h, i) => `${group.tab2}_${h || 'Col' + (i + 1)}`)
+                ...filteredHeaders2.map(h => `${group.tab2}_${h}`) 
             ];
+
+            const originalGroup = allMatches.find(g => g.tab1 === group.tab1 && g.col1 === group.col1 && g.tab2 === group.tab2 && g.col2 === group.col2);
+            if (!originalGroup) return [];
+
+            const matchesToExport = originalGroup.matches.filter(m => m.keep);
 
             return [
                 ['Match Key Pair', 'Match Key 1 Value', 'Match Key 2 Value', 'Fuzzy Match', ...allHeaders],
-                // Export data now uses originalRowX
-                ...group.matches.map(m => [
-                    `${group.header1} vs ${group.header2}`, 
-                    m.val1,
-                    m.val2,
-                    m.isFuzzy ? 'Yes' : 'No',
-                    m.originalRow1, 
-                    ...m.data1, 
-                    m.originalRow2, 
-                    ...m.data2 
-                ])
+                ...matchesToExport.map(m => {
+                    
+                    const filteredData1 = filterRow(m.data1, ignoredCols1);
+                    const filteredData2 = filterRow(m.data2, ignoredCols2);
+                    
+                    return [
+                        `${group.header1} vs ${group.header2}`, 
+                        m.val1,
+                        m.val2,
+                        m.isFuzzy ? 'Yes' : 'No',
+                        m.originalRow1, 
+                        ...filteredData1, 
+                        m.originalRow2, 
+                        ...filteredData2  
+                    ];
+                })
             ];
         }
 
-        function exportResults(groups) {
+        function exportResults() {
             const newWb = XLSX.utils.book_new();
-            const exportGroups = groups || allMatches;
-            
-            exportGroups.forEach((group) => {
-                const exportData = prepareExportData(group);
-                const ws = XLSX.utils.aoa_to_sheet(exportData);
-                const sheetName = `${group.header1} vs ${group.header2}`.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 31);
-                XLSX.utils.book_append_sheet(newWb, ws, sheetName);
-            });
+            const exportGroups = allMatches;
 
-            XLSX.writeFile(newWb, 'all_matched_data_results.xlsx');
+            const ignoredCols1 = getCheckedColumnIndices(exportIgnoreCols1Container);
+            const ignoredCols2 = getCheckedColumnIndices(exportIgnoreCols2Container);
+
+            let totalRowsExported = 0;
+
+            exportGroups.forEach((group) => {
+                const exportData = prepareExportData(group, ignoredCols1, ignoredCols2);
+
+                if (exportData.length > 1) { 
+                    totalRowsExported += (exportData.length - 1);
+                    const ws = XLSX.utils.aoa_to_sheet(exportData);
+                    const sheetName = `${group.header1} vs ${group.header2}`.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 31);
+                    XLSX.utils.book_append_sheet(newWb, ws, sheetName);
+                }
+            });
+            
+            if (totalRowsExported === 0) {
+                 alert("No rows are currently selected for export across all match groups. Please check the 'Export' checkboxes.");
+                 return;
+            }
+
+            XLSX.writeFile(newWb, `selected_matched_data_results_${totalRowsExported}_rows.xlsx`);
         }
 
-        function exportMatchGroup(groupIndex) {
-            // NOTE: The export function always uses the full, unfiltered match list stored in allMatches
+        window.exportMatchGroup = function(groupIndex) {
             const group = allMatches[groupIndex];
             if (!group) return;
 
-            const exportData = prepareExportData(group);
+            const ignoredCols1 = getCheckedColumnIndices(exportIgnoreCols1Container);
+            const ignoredCols2 = getCheckedColumnIndices(exportIgnoreCols2Container);
+
+            const exportData = prepareExportData(group, ignoredCols1, ignoredCols2);
+            
+            if (exportData.length <= 1) {
+                 alert(`No rows in match group '${group.header1} vs ${group.header2}' are currently selected for export. Please check the 'Export' checkboxes.`);
+                 return;
+            }
 
             const newWb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(exportData);
-            const fileName = `match_${group.header1}_vs_${group.header2}.xlsx`.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 100);
+            const fileName = `match_selected_${group.header1}_vs_${group.header2}.xlsx`.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 100);
             
             XLSX.utils.book_append_sheet(newWb, ws, 'Results');
 
             XLSX.writeFile(newWb, fileName);
         }
+        
+        // Initial DB setup when the script loads
+        initDB().then(() => {
+            getMetadata().then(() => {
+                if (sheetNames.length > 0) {
+                    // If metadata exists, meaning a file was previously loaded, show controls
+                    initializeSheetSelector(sheetNames);
+                    controls.style.display = 'block';
+                    updateSelectionSlots();
+                    updateSelectionStatus();
+                    document.getElementById('progressText').textContent = 'Database found: Ready to re-use previously loaded data or load a new file.';
+                }
+            });
+        }).catch(error => {
+            console.warn("Initial DB connection failed (expected if DB is empty or unversioned):", error);
+        });
+
     </script>
 </body>
 </html>
