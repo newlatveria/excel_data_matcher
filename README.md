@@ -1,117 +1,102 @@
-# 🚀 Excel Data Master (EDM) - Dual Mode Data Matching Utility
+# 🚀 EDM: Excel Data Utility (Dual Mode) - The Ultimate Data Cleaner & Matcher!
 
-The **Excel Data Master (EDM)** is a powerful, client-side, browser-based tool designed for rapid, robust deduplication and comparison of large Excel datasets. Using modern Web Worker technology, it performs heavy lifting operations like cross-sheet matching and fuzzy logic without straining your system's main thread, ensuring a smooth user experience.
+---
 
-The core strength of the EDM is its **Robust Exact Match** feature, which is now enhanced to be completely **word order-independent** (e.g., matching "John Smith" to "Smith John" automatically).
+## 🔥 Unleash the Power of Robust Data Comparison!
 
-***
+Tired of clunky, slow, and rigid Excel tools? Meet **EDM**, a lightning-fast, browser-based Excel utility powered by **Web Workers** for high-performance data matching and deduplication. EDM goes beyond simple exact matches, introducing the revolutionary **Robust Exact Match** to find hidden relationships even when your data is messy!
 
-## ✨ Key Features
+Whether you need to clean a massive list or reconcile two complex datasets, EDM is your one-stop solution.
 
-| Feature | Description | Highlight |
+---
+
+## ✨ Cutting-Edge Features You'll Love
+
+| Feature | Description | Mode |
 | :--- | :--- | :--- |
-| **Robust Exact Match** | Aggressively normalizes data by stripping spaces, punctuation, case, and **numbers**, and now **sorts characters** for **word-order independence**. | **`John Smith` = `john,Smith` = `Smith John`** |
-| **Fuzzy Matching** | Utilizes **Levenshtein Distance** logic to find near-misses based on a customizable threshold (0-100%). | Finds `Microsfot` matches `Microsoft` |
-| **Dual Mode** | Supports **Single Sheet Deduplication** (finding duplicates within one list) and **Dual Sheet Comparison** (finding matches across two lists). | Versatile workflow |
-| **Targeted Matching** | Allows you to select one column from Sheet 1 to match against one (or all) columns in Sheet 2 for a focused analysis. | Focus on `Account ID` vs. `Reference Column` |
-| **Client-Side Processing** | All data is processed in your browser's memory using a **Web Worker** and never leaves your computer, ensuring **maximum privacy and speed**. | Fast & Secure |
+| **💪 Robust Exact Match** | Aggressively strips spaces, punctuation, and numbers for key comparison. **`John Smith` = `johnsmith` = `Smith2John`**. Finds matches traditional tools miss. | Comparison |
+| **✨ Fuzzy Matching** | Leverages **Levenshtein Distance** to identify near-matches based on a user-defined threshold (default 20%). | Comparison |
+| **🧹 Dual Modes** | Seamlessly switch between **Single-Sheet Deduplication** and **Two-Sheet Comparison**. | Both |
+| **🎯 Targeted Match** | Compare a **single key column** (Sheet 1) against a specific column or **ALL** columns (Sheet 2) for maximum efficiency. | Comparison |
+| **🔍 Exhaustive Match** | Run a matrix comparison of **all columns in Sheet 1 against all columns in Sheet 2** to discover every potential link. | Comparison |
+| **🧼 Pre-Clean Source Data** | Option to remove internal duplicate rows from Sheet 1 and Sheet 2 *before* running the cross-sheet comparison. | Comparison |
+| **🗑️ Cross-Match Deduplication** | Automatically removes redundant match pairs (e.g., if Name and ID both match the same two rows, only one result is kept). | Comparison |
+| **📊 Advanced Filtering** | Filter results by **Match Count (Min/Max)**, **Fuzzy Only** groups, **Matched Column Pair**, and perform a **Full-Text Search** within any result group. | Comparison |
+| **💾 Full Data Export** | All matches/unique rows are included in the exported file, even if the UI display is limited to the first 1,000 results. | Both |
+| **🔢 Original Row Trace** | Exported data includes the **Original Row Number** from the source sheet, even after pre-cleaning, for easy tracing back to the source file. | Comparison |
 
-***
+---
 
-## ⚙️ Setup and Installation (The Quickest Setup Imaginable)
+## 💡 Use Case Scenarios
 
-Since the Excel Data Master is a **single, self-contained HTML file**, there is no complex installation, dependencies, or server setup required.
+### Deduplication Mode (Single Sheet)
+* **CRM Clean-Up:** You have a master list of customer accounts. Use EDM to quickly identify and extract all **perfectly duplicate rows** (every column is identical) to ensure data integrity.
+* **Inventory Management:** You need a list of **truly unique SKUs** based on the full row details, including quantity, color, and price.
 
-### 1. Download the Tool
+### Comparison Mode (Two Sheets)
+* **Invoice Reconciliation:** Match vendor names and amounts from an **Invoices Received** sheet against a **Payments Sent** sheet, using the Robust Exact Match to handle messy data like `Acme Inc.` vs. `ACME, Inc.`.
+* **Data Migration Validation:** Compare old system data (Sheet 1) with new system data (Sheet 2) using **Exhaustive Match** to ensure no data points were lost during the migration process.
+* **Lead Generation:** Use **Targeted Match** to take a list of potential customer names (Sheet 1, Column A) and search for them across every column (Name, Email, Address, Notes) in your existing **Customer Database** (Sheet 2).
 
-1.  Navigate to the repository where the `EDM-Robust Exact Match.HTML` file is stored (e.g., your GitHub repo).
-2.  Download the **`EDM-Robust Exact Match.HTML`** file to your local computer.
+---
 
-### 2. Run the Tool
+## 🛠️ Getting Started from GitHub (Run Instantly!)
 
-1.  **Double-click** the downloaded **`EDM-Robust Exact Match.HTML`** file.
-2.  It will immediately open in your default web browser (Chrome, Firefox, Edge, etc.).
+Since EDM is built purely on **HTML and JavaScript**, running it is incredibly simple and requires **no installation**!
 
-That's it! The tool is now ready to use.
+1.  **Clone or Download:** Clone this repository or download the `EDM-Robust Exact Match.HTML` file to your local machine.
+2.  **Open in Browser:** **Double-click** the `EDM-Robust Exact Match.HTML` file. It will automatically open in your default web browser (Chrome, Firefox, Edge, etc.).
+3.  **Start Working:** You are now ready to upload your Excel files and begin processing data!
 
-***
+> **Pro Tip:** For optimal performance, especially with large files, ensure you are using a modern browser and open your browser's **Developer Console (F12)** to view detailed file-loading logs and track progress.
 
-## 📖 Usage Guide
+---
 
-### Step 1: Upload Your Excel File
+## 📝 Step-by-Step Usage Instructions
 
-1.  Click the **"Choose Excel File"** button.
-2.  Select your `.xlsx` or `.xls` file.
-3.  The sheets within your workbook will load and appear below the upload section.
+### I. File Upload & Sheet Selection
 
-### Step 2: Select Your Mode
+1.  Click the **"Choose Excel File"** button and select your `.xlsx` or `.xls` file.
+2.  The utility will load all sheets and display them as interactive buttons below.
+3.  **Select Your Mode:**
+    * **Deduplication:** Click **one** sheet button.
+    * **Comparison:** Click **two** different sheet buttons.
 
-The tool automatically determines the operation mode based on the number of sheets you select:
+### II. Single-Sheet Deduplication Mode
 
-#### A. Single Sheet Mode (Deduplication) 🧹
-* Click **one sheet name** (e.g., `Current Customer List`).
-* The "Selection Status" will confirm: **"Mode: Deduplication"**.
-* Click **"Find and Remove Duplicates within Sheet"**.
+1.  After selecting **one sheet**, the status will update to **"Mode: Deduplication"**.
+2.  Click the **"🧹 Find and Remove Duplicates within Sheet"** button.
+3.  The utility will process the sheet, identifying and separating unique and duplicate rows based on an exact match across all cell values.
+4.  **View Results:**
+    * **Unique Data Result:** Contains all cleaned, unique rows. Click **"Download Unique Data"** to export.
+    * **Removed Duplicate Rows:** Contains all rows that were removed. Click **"Download Duplicated Rows"** to export.
 
-#### B. Dual Sheet Mode (Comparison/Matching) ↔️
-* Click **two different sheet names** (e.g., first `New Leads`, then `Blacklist`).
-* The "Selection Status" will confirm: **"Mode: Comparison"**.
-* The matching controls will appear.
+### III. Two-Sheet Comparison Mode
 
-### Step 3: Configure Matching Options (Dual Mode Only)
+1.  After selecting **two sheets**, the status will update to **"Mode: Comparison"**.
+2.  **Configure Options:**
+    * **Dedupe Source Sheets:** Check this to remove internal duplicates *before* cross-sheet comparison. Recommended!
+    * **Robust Exact Match:** **CHECK THIS** to utilize the aggressive cleaning logic (`john.smith` = `johnsmith`).
+    * **Fuzzy Matching:** Check this and set your **Fuzzy Match Threshold** (e.g., 20 is a good starting point) to find near-matches.
+3.  **Choose Your Comparison:**
+    * **A. Exhaustive Match:** Click **"Find All Potential Matches (Exhaustive)"** to compare every column against every other column. Best for initial discovery.
+    * **B. Targeted Column Match:** Select a single column from **Sheet 1** and a target (either a specific column or **"ALL"** columns) from **Sheet 2**, then click **"🎯 Run Targeted Match"**. Best for focused analysis.
+4.  **View & Filter Results:**
+    * Results are grouped by the matched column pair (e.g., `Sheet1: Email` ↔️ `Sheet2: Email`).
+    * Use the **Global Match Group Filters** at the top to quickly filter results (e.g., show only groups with Fuzzy Matches, or only matches found via the `Name` ↔️ `Customer` pair).
+    * Use the **Individual Group Filters** (Text Search, Row # Filters) to zero in on specific results within a large match group.
+5.  **Export:**
+    * Click the green **"Export This Match Group"** button to download the results for a single column pair.
+    * Click the red **"Export ALL Match Groups to a Single Workbook"** button to download all match groups into separate tabs in one file.
 
-Before running a comparison, customize the matching aggressiveness:
+---
 
-| Option | Function | Recommended Use |
-| :--- | :--- | :--- |
-| **Pre-Clean Source Sheets** | Removes exact duplicates within Sheet 1 and Sheet 2 *before* comparison. | **Always Check** to prevent redundant match results. |
-| **Enable Robust Exact Match** | Activates the powerful, order-independent logic (`John Smith` = `Smith John`). | **Check** for names, addresses, or messy text fields. |
-| **Remove Cross-Sheet Duplicates**| If multiple column pairs link the same two rows, only one match is recorded. | **Always Check** for cleaner results. |
-| **Enable Fuzzy Matching** | Enables Levenshtein Distance. Adjust the **Threshold** (e.g., `20` is a good starting point). | **Check** when expecting typos (e.g., manual data entry). |
+## ❓ FAQ (Frequently Asked Questions)
 
-### Step 4: Run the Analysis
-
-1.  **Exhaustive Match:** Click **"Find All Potential Matches (Exhaustive)"** to compare **every column in Sheet 1** against **every column in Sheet 2**. *This is thorough but can be slow on large files.*
-2.  **Targeted Match:** Select a single column from Sheet 1 and your desired column(s) from Sheet 2 in the **"Targeted Column Match"** section, then click **"Run Targeted Match"**. *This is much faster and more focused.*
-
-### Step 5: Review and Export
-
-1.  The **Results** section will appear with statistics and individual **Match Groups** (one for each matching column pair).
-2.  **Filter:** Use the **Global Match Group Filters** to narrow the view (e.g., show only groups that matched on `Name ↔ Name`).
-3.  **Drill Down:** Use the **Full-Text Search** filter within each group to quickly find a specific match row.
-4.  **Export:**
-    * Use the **"Export This Match Group"** button to download a single match pair's results.
-    * Use the large **"Export ALL Match Groups"** button at the bottom to get a single workbook containing all match results on separate tabs.
-
-***
-
-## 🎯 Relevant Use Scenarios
-
-### Scenario 1: Unifying Customer Records (Robust Exact Match)
-
-**Problem:** You have two systems, an old CRM and a new ERP, and you need to find which customers from the old system were successfully migrated to the new one. The data quality is poor: one uses "John P. Smith," the other uses "Smith, John 123."
-
-**EDM Solution:**
-1.  **Mode:** Dual Sheet Comparison (Old CRM vs. New ERP).
-2.  **Configuration:** **Enable Robust Exact Match** (Crucial). Enable Fuzzy Matching.
-3.  **Run:** Exhaustive or Targeted Match on the `Customer Name` columns.
-4.  **Result:** EDM will successfully match `John P. Smith` to `Smith, John 123` because the Robust key normalizes both to the same order-independent key, giving you a clean list of migrated records.
-
-### Scenario 2: Identifying Typos in Product IDs (Fuzzy Matching)
-
-**Problem:** A logistics team needs to compare a large manifest of incoming products (Manifest A) with a warehouse inventory list (Inventory B). The product codes (`SKU-4821-B`) were hand-typed for Manifest A, leading to frequent typos.
-
-**EDM Solution:**
-1.  **Mode:** Dual Sheet Comparison (Manifest A vs. Inventory B).
-2.  **Configuration:** **Enable Fuzzy Matching** with a threshold of **10%** (for high accuracy). *Keep Robust Exact Match disabled* to preserve the numbers and structure in the SKU.
-3.  **Run:** Targeted Match: `Manifest A Product ID` against `Inventory B Product ID`.
-4.  **Result:** EDM will create a match group of all the "close" IDs, such as matching `SKU-4821-B` to the mistyped `SKU-48Z1-B`.
-
-### Scenario 3: Cleaning a Master List (Deduplication)
-
-**Problem:** A marketing team wants to send a mass email but needs to clean their master mailing list first, as many rows are exact duplicates due to accidental imports.
-
-**EDM Solution:**
-1.  **Mode:** Single Sheet Deduplication (Master Mailing List).
-2.  **Run:** Click **"Find and Remove Duplicates within Sheet"**.
-3.  **Result:** The tool swiftly identifies all identical rows. You can export the **Unique Data Result** (ready for the email campaign) and the **Removed Duplicate Rows** (for audit/review).
+| Question | Answer |
+| :--- | :--- |
+| **Why is it browser-based?** | It uses your browser's **JavaScript engine** and **Web Workers** for concurrent, high-speed, client-side processing, meaning your data **never leaves your computer** and is not sent to a server. |
+| **How fast is it?** | Due to Web Workers, it's very fast. File parsing is synchronous, but the complex **comparison logic runs in a separate thread**, preventing the browser from freezing and delivering a smooth experience even with hundreds of thousands of rows. |
+| **What's the difference between Robust and Fuzzy Match?** | **Robust Exact Match** is still an *exact match* after aggressively cleaning the data (removing all non-alphanumeric characters). **Fuzzy Match** is a *near match* that allows for slight differences (e.g., one letter typo) based on the Levenshtein distance calculation. |
+| **Why are only 1,000 matches showing?** | The UI limits displayed rows to 1,000 for performance and responsiveness. **All matches** are included in the exported Excel file. |
+| **What does 'Original Row #' mean in the export?** | This is the row number of the matched data point **in the source file**, allowing you to easily track the result back to the original spreadsheet, especially if you used the "Pre-Clean Source Sheets" option. |
