@@ -44,8 +44,8 @@ Whether you need to clean a massive list or reconcile two complex datasets, EDM 
 
 Since EDM is built purely on **HTML and JavaScript**, running it is incredibly simple and requires **no installation**!
 
-1.  **Clone or Download:** Clone this repository or download the `EDM-Robust Exact Match.HTML` file to your local machine.
-2.  **Open in Browser:** **Double-click** the `EDM-Robust Exact Match.HTML` file. It will automatically open in your default web browser (Chrome, Firefox, Edge, etc.).
+1.  **Clone or Download:** Clone this repository or download the `EDM.HTML` file to your local machine.
+2.  **Open in Browser:** **Double-click** the `EDM.HTML` file. It will automatically open in your default web browser (Chrome, Firefox, Edge, etc.).
 3.  **Start Working:** You are now ready to upload your Excel files and begin processing data!
 
 > **Pro Tip:** For optimal performance, especially with large files, ensure you are using a modern browser and open your browser's **Developer Console (F12)** to view detailed file-loading logs and track progress.
