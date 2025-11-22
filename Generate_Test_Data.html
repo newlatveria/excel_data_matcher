@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDM Test Protocol & Data Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; color: #333; line-height: 1.6; padding: 40px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        
+        h1 { color: #2c3e50; margin-bottom: 10px; text-align: center; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 40px; }
+        
+        .download-section { text-align: center; margin-bottom: 50px; padding: 30px; background: #e8f6f3; border-radius: 8px; border: 2px dashed #1abc9c; }
+        .btn { 
+            background: linear-gradient(135deg, #1abc9c, #16a085); 
+            color: white; padding: 18px 35px; font-size: 1.2em; 
+            border: none; border-radius: 6px; cursor: pointer; 
+            font-weight: bold; transition: transform 0.2s, box-shadow 0.2s; 
+        }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(26, 188, 156, 0.4); }
+
+        h2 { color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-top: 40px; margin-bottom: 20px; }
+        
+        .scenario { background: #fff; border: 1px solid #e0e0e0; border-left: 5px solid #3498db; border-radius: 4px; padding: 20px; margin-bottom: 20px; }
+        .scenario h3 { margin-bottom: 10px; color: #2980b9; }
+        .scenario ul { margin-left: 20px; }
+        .scenario li { margin-bottom: 5px; }
+        
+        code { background: #f7f9fa; padding: 2px 5px; border-radius: 3px; color: #c0392b; font-family: 'Consolas', monospace; }
+        .pass-criteria { font-weight: bold; color: #27ae60; margin-top: 10px; display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🧪 EDM Robust Test Protocol</h1>
+        <p class="subtitle">Generate stress-test data and follow the instructions below to validate the Excel Data Master application.</p>
+
+        <div class="download-section">
+            <button class="btn" onclick="generateFile()">📥 Generate & Download "EDM_Stress_Test.xlsx"</button>
+            <p style="margin-top: 15px; font-size: 0.9em; color: #555;">Click to create a file containing Date Objects, Ragged Rows, and Fuzzy Logic traps.</p>
+        </div>
+
+        <h2>audit Instructions</h2>
+
+        <div class="scenario" style="border-left-color: #8e44ad;">
+            <h3>1. Setup</h3>
+            <ul>
+                <li>Open the <strong>Excel Data Master (EDM)</strong> application.</li>
+                <li>Upload the <code>EDM_Stress_Test.xlsx</code> file you just generated.</li>
+                <li>Select <strong>Sheet 1 (Master_CRM)</strong> and <strong>Sheet 2 (Incoming_Messy)</strong>.</li>
+            </ul>
+        </div>
+
+        <div class="scenario">
+            <h3>Scenario A: Validating "Robust Exact Match"</h3>
+            <p><strong>Test:</strong> Check if the tool correctly ignores punctuation, casing, and word order.</p>
+            <p><strong>Config:</strong> Check <code>Enable Robust Exact Match</code>.</p>
+            <p><strong>Action:</strong> Run Exhaustive Match.</p>
+            <p><strong>Look for Group:</strong> <code>Master_CRM: Full Name</code> ↔️ <code>Incoming_Messy: User Input Name</code></p>
+            <span class="pass-criteria">✅ PASS IF: You see 3 matches for "John Smith" (Exact, "smith, john", and "Smith John").</span>
+        </div>
+
+        <div class="scenario">
+            <h3>Scenario B: Validating Fuzzy Matching</h3>
+            <p><strong>Test:</strong> Check if typos are caught using Levenshtein distance.</p>
+            <p><strong>Config:</strong> Check <code>Enable Fuzzy Matching</code> (Threshold 20).</p>
+            <p><strong>Action:</strong> Run Exhaustive Match.</p>
+            <span class="pass-criteria">✅ PASS IF: "Alice Wonderland" matches with "Allice Wnderland".</span>
+        </div>
+
+        <div class="scenario">
+            <h3>Scenario C: Date Parsing & Ragged Data Alignment</h3>
+            <p><strong>Test:</strong> Ensure dates are readable strings and empty leading cells don't shift data left.</p>
+            <p><strong>Action:</strong> Inspect the results for <strong>Master_CRM</strong>.</p>
+            <span class="pass-criteria">✅ PASS IF: "Date Joined" shows <code>2023-01-15</code> (not 44941).</span>
+            <span class="pass-criteria">✅ PASS IF: For "Bob The Builder", the email column in Sheet 2 is aligned correctly, even though the Name cell before it was empty.</span>
+        </div>
+
+        <div class="scenario">
+            <h3>Scenario D: Ignore Columns</h3>
+            <p><strong>Test:</strong> Ensure specific columns are excluded from analysis.</p>
+            <p><strong>Config:</strong> In "Columns to IGNORE", check <code>Notes (Ignore)</code> for Sheet 1.</p>
+            <p><strong>Action:</strong> Run Exhaustive Match.</p>
+            <span class="pass-criteria">✅ PASS IF: No matches are found based on the "Notes" column content ("Sensitive Data...").</span>
+        </div>
+
+        <div class="scenario" style="border-left-color: #e67e22;">
+            <h3>Scenario E: Single Sheet Deduplication</h3>
+            <p><strong>Test:</strong> Clear selection, select <strong>only Sheet 3 (Dedupe_Test)</strong>.</p>
+            <p><strong>Action:</strong> Click "Find and Remove Duplicates".</p>
+            <span class="pass-criteria">✅ PASS IF: 2 Duplicates removed (The exact "Widget A" and the "Widget B " with a trailing space).</span>
+        </div>
+    </div>
+
+    <script>
+        function generateFile() {
+            const wb = XLSX.utils.book_new();
+
+            // --- SHEET 1: "Master_CRM" (Clean Data) ---
+            const data1 = [
+                ["ID", "Full Name", "Email Address", "Date Joined", "Notes (Ignore)"],
+                [101, "John Smith", "john.smith@example.com", new Date("2023-01-15"), "Sensitive Data A"],
+                [102, "Alice Wonderland", "alice@wonder.land", new Date("2023-02-20"), "Sensitive Data B"],
+                [103, "Bob The Builder", "bob@build.it", new Date("2023-03-10"), "Sensitive Data C"],
+                [104, "Charlie Brown", "charlie@peanuts.com", new Date("2023-04-05"), "Sensitive Data D"]
+            ];
+            const ws1 = XLSX.utils.aoa_to_sheet(data1);
+            XLSX.utils.book_append_sheet(wb, ws1, "Master_CRM");
+
+            // --- SHEET 2: "Incoming_Messy" (Dirty Data) ---
+            const data2 = [
+                ["Ref ID", "User Input Name", "Contact Info", "Status"],
+                ["REF_01", "John Smith", "john.smith@example.com", "Exact Match"], 
+                ["REF_02", "smith, john", "N/A", "Robust Punctuation"], 
+                ["REF_03", "Smith John", "N/A", "Robust Word Order"], 
+                ["REF_04", "Allice Wnderland", "N/A", "Fuzzy Match"], 
+                ["REF_05", "", "bob@build.it", "Ragged/Empty Lead"], // Empty name to test alignment
+                [null, null, null, null], // Empty row to test stability
+                ["REF_06", "David Bowie", "starman@mars.com", "No Match"] 
+            ];
+            const ws2 = XLSX.utils.aoa_to_sheet(data2);
+            XLSX.utils.book_append_sheet(wb, ws2, "Incoming_Messy");
+
+            // --- SHEET 3: "Dedupe_Test" ---
+            const data3 = [
+                ["Product", "SKU", "Price"],
+                ["Widget A", "SKU-100", 10.99],
+                ["Widget B", "SKU-200", 15.50],
+                ["Widget A", "SKU-100", 10.99], // Exact Duplicate
+                ["Widget C", "SKU-300", 5.00],
+                ["Widget B ", "SKU-200", 15.50] // Duplicate with trailing space
+            ];
+            const ws3 = XLSX.utils.aoa_to_sheet(data3);
+            XLSX.utils.book_append_sheet(wb, ws3, "Dedupe_Test");
+
+            // Save File
+            XLSX.writeFile(wb, "EDM_Stress_Test.xlsx");
+        }
+    </script>
+</body>
+</html>
