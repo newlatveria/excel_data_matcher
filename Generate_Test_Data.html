@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EDM Test Protocol & Data Generator</title>
+    <title>EDM Test Protocol & Data Generator (v2)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -36,63 +36,48 @@
 <body>
 
     <div class="container">
-        <h1>🧪 EDM Robust Test Protocol</h1>
-        <p class="subtitle">Generate stress-test data and follow the instructions below to validate the Excel Data Master application.</p>
+        <h1>🧪 EDM Robust Test Protocol (v2)</h1>
+        <p class="subtitle">Generates a 30+ row dataset for stress-testing Grouping, Deduplication, and Robust Matching.</p>
 
         <div class="download-section">
-            <button class="btn" onclick="generateFile()">📥 Generate & Download "EDM_Stress_Test.xlsx"</button>
-            <p style="margin-top: 15px; font-size: 0.9em; color: #555;">Click to create a file containing Date Objects, Ragged Rows, and Fuzzy Logic traps.</p>
+            <button class="btn" onclick="generateFile()">📥 Download "EDM_Stress_Test_v2.xlsx"</button>
+            <p style="margin-top: 15px; font-size: 0.9em; color: #555;">Contains 3 Sheets with 30+ rows each, including Dates, Fuzzy Typos, and Ragged Data.</p>
         </div>
 
-        <h2>audit Instructions</h2>
+        <h2>Audit Instructions</h2>
 
         <div class="scenario" style="border-left-color: #8e44ad;">
             <h3>1. Setup</h3>
             <ul>
                 <li>Open the <strong>Excel Data Master (EDM)</strong> application.</li>
-                <li>Upload the <code>EDM_Stress_Test.xlsx</code> file you just generated.</li>
-                <li>Select <strong>Sheet 1 (Master_CRM)</strong> and <strong>Sheet 2 (Incoming_Messy)</strong>.</li>
+                <li>Upload the <code>EDM_Stress_Test_v2.xlsx</code> file.</li>
             </ul>
         </div>
 
         <div class="scenario">
-            <h3>Scenario A: Validating "Robust Exact Match"</h3>
-            <p><strong>Test:</strong> Check if the tool correctly ignores punctuation, casing, and word order.</p>
-            <p><strong>Config:</strong> Check <code>Enable Robust Exact Match</code>.</p>
-            <p><strong>Action:</strong> Run Exhaustive Match.</p>
-            <p><strong>Look for Group:</strong> <code>Master_CRM: Full Name</code> ↔️ <code>Incoming_Messy: User Input Name</code></p>
-            <span class="pass-criteria">✅ PASS IF: You see 3 matches for "John Smith" (Exact, "smith, john", and "Smith John").</span>
+            <h3>Scenario A: New "Grouping" Feature</h3>
+            <p><strong>Goal:</strong> Group 35 transaction records by their Department/Category.</p>
+            <p><strong>1.</strong> Select <strong>only</strong> <code>Sheet 3 (Transactions)</code>.</p>
+            <p><strong>2.</strong> In "Data Grouping & Cleaning", check <strong>Department</strong>.</p>
+            <p><strong>3.</strong> Click <strong>Group Data by Selected Columns</strong>.</p>
+            <span class="pass-criteria">✅ PASS IF: You see groups like "Group 1: Department: Sales (10 rows)" and "Group 2: Department: IT (8 rows)".</span>
         </div>
 
         <div class="scenario">
-            <h3>Scenario B: Validating Fuzzy Matching</h3>
-            <p><strong>Test:</strong> Check if typos are caught using Levenshtein distance.</p>
-            <p><strong>Config:</strong> Check <code>Enable Fuzzy Matching</code> (Threshold 20).</p>
-            <p><strong>Action:</strong> Run Exhaustive Match.</p>
-            <span class="pass-criteria">✅ PASS IF: "Alice Wonderland" matches with "Allice Wnderland".</span>
+            <h3>Scenario B: Robust "Word Order" Match</h3>
+            <p><strong>Goal:</strong> Verify "John Smith" matches "Smith John".</p>
+            <p><strong>1.</strong> Select <code>Sheet 1 (Master_CRM)</code> and <code>Sheet 2 (Incoming_Data)</code>.</p>
+            <p><strong>2.</strong> Check <strong>Enable Robust Exact Match</strong>.</p>
+            <p><strong>3.</strong> Run <strong>Exhaustive Match</strong>.</p>
+            <span class="pass-criteria">✅ PASS IF: "Tony Stark" (Sheet 1) matches "Stark, Tony" AND "Stark Tony" (Sheet 2).</span>
         </div>
 
         <div class="scenario">
-            <h3>Scenario C: Date Parsing & Ragged Data Alignment</h3>
-            <p><strong>Test:</strong> Ensure dates are readable strings and empty leading cells don't shift data left.</p>
-            <p><strong>Action:</strong> Inspect the results for <strong>Master_CRM</strong>.</p>
-            <span class="pass-criteria">✅ PASS IF: "Date Joined" shows <code>2023-01-15</code> (not 44941).</span>
-            <span class="pass-criteria">✅ PASS IF: For "Bob The Builder", the email column in Sheet 2 is aligned correctly, even though the Name cell before it was empty.</span>
-        </div>
-
-        <div class="scenario">
-            <h3>Scenario D: Ignore Columns</h3>
-            <p><strong>Test:</strong> Ensure specific columns are excluded from analysis.</p>
-            <p><strong>Config:</strong> In "Columns to IGNORE", check <code>Notes (Ignore)</code> for Sheet 1.</p>
-            <p><strong>Action:</strong> Run Exhaustive Match.</p>
-            <span class="pass-criteria">✅ PASS IF: No matches are found based on the "Notes" column content ("Sensitive Data...").</span>
-        </div>
-
-        <div class="scenario" style="border-left-color: #e67e22;">
-            <h3>Scenario E: Single Sheet Deduplication</h3>
-            <p><strong>Test:</strong> Clear selection, select <strong>only Sheet 3 (Dedupe_Test)</strong>.</p>
-            <p><strong>Action:</strong> Click "Find and Remove Duplicates".</p>
-            <span class="pass-criteria">✅ PASS IF: 2 Duplicates removed (The exact "Widget A" and the "Widget B " with a trailing space).</span>
+            <h3>Scenario C: Date Alignment & Ragged Data</h3>
+            <p><strong>Goal:</strong> Ensure empty leading cells don't shift data.</p>
+            <p><strong>1.</strong> Look at the results for <strong>Sheet 1</strong>.</p>
+            <p><strong>2.</strong> Find <strong>Row 30</strong> (Bruce Wayne).</p>
+            <span class="pass-criteria">✅ PASS IF: The email column in Sheet 2 contains an email address, NOT a date or empty space, despite previous cells being empty.</span>
         </div>
     </div>
 
@@ -100,45 +85,120 @@
         function generateFile() {
             const wb = XLSX.utils.book_new();
 
-            // --- SHEET 1: "Master_CRM" (Clean Data) ---
-            const data1 = [
-                ["ID", "Full Name", "Email Address", "Date Joined", "Notes (Ignore)"],
-                [101, "John Smith", "john.smith@example.com", new Date("2023-01-15"), "Sensitive Data A"],
-                [102, "Alice Wonderland", "alice@wonder.land", new Date("2023-02-20"), "Sensitive Data B"],
-                [103, "Bob The Builder", "bob@build.it", new Date("2023-03-10"), "Sensitive Data C"],
-                [104, "Charlie Brown", "charlie@peanuts.com", new Date("2023-04-05"), "Sensitive Data D"]
+            // --- SHEET 1: "Master_CRM" (Clean Data, 30+ Rows) ---
+            const header1 = ["ID", "Full Name", "Department", "Email Address", "Date Joined", "Notes (Ignore)"];
+            const rows1 = [
+                [101, "Tony Stark", "Engineering", "tony@stark.com", new Date("2020-01-01"), "vip"],
+                [102, "Steve Rogers", "Operations", "steve@shield.gov", new Date("2020-02-15"), "active"],
+                [103, "Natasha Romanoff", "Operations", "nat@shield.gov", new Date("2020-03-10"), "active"],
+                [104, "Bruce Banner", "Science", "bruce@gamma.lab", new Date("2020-04-01"), "active"],
+                [105, "Thor Odinson", "Management", "thor@asgard.realm", new Date("2020-05-20"), "remote"],
+                [106, "Clint Barton", "Operations", "clint@hawkeye.com", new Date("2020-06-15"), "active"],
+                [107, "Wanda Maximoff", "Magic", "wanda@westview.com", new Date("2020-07-30"), "hybrid"],
+                [108, "Vision", "IT", "vision@android.net", new Date("2020-08-12"), "remote"],
+                [109, "Peter Parker", "Internship", "peter@dailybugle.com", new Date("2020-09-01"), "part-time"],
+                [110, "Stephen Strange", "Magic", "doctor@strange.com", new Date("2020-10-31"), "consultant"],
+                [111, "T'Challa", "Management", "king@wakanda.gov", new Date("2020-11-11"), "vip"],
+                [112, "Scott Lang", "Engineering", "scott@pym.tech", new Date("2020-12-05"), "contractor"],
+                [113, "Hope Van Dyne", "Engineering", "hope@pym.tech", new Date("2021-01-20"), "active"],
+                [114, "Carol Danvers", "Operations", "captain@marvel.space", new Date("2021-02-28"), "remote"],
+                [115, "Nick Fury", "Management", "fury@shield.gov", new Date("2021-03-15"), "director"],
+                [116, "Maria Hill", "Operations", "hill@shield.gov", new Date("2021-04-10"), "active"],
+                [117, "Sam Wilson", "Operations", "falcon@airforce.mil", new Date("2021-05-05"), "active"],
+                [118, "Bucky Barnes", "Operations", "wintersoldier@hydra.old", new Date("2021-06-01"), "active"],
+                [119, "Loki Laufeyson", "Management", "loki@tva.time", new Date("2021-07-07"), "contractor"],
+                [120, "Sylvie", "Management", "sylvie@tva.time", new Date("2021-08-08"), "contractor"],
+                [121, "Shang-Chi", "Operations", "shang@tenrings.org", new Date("2021-09-09"), "active"],
+                [122, "Katy Chen", "Transport", "katy@valet.com", new Date("2021-10-10"), "active"],
+                [123, "Wong", "Magic", "wong@library.kamar", new Date("2021-11-11"), "librarian"],
+                [124, "America Chavez", "Travel", "america@multiverse.org", new Date("2021-12-12"), "intern"],
+                [125, "Kate Bishop", "Internship", "kate@hawkeye.com", new Date("2022-01-01"), "intern"],
+                [126, "Yelena Belova", "Operations", "yelena@widow.ops", new Date("2022-02-02"), "contractor"],
+                [127, "Marc Spector", "Security", "moon@knight.egypt", new Date("2022-03-03"), "night-shift"],
+                [128, "Steven Grant", "Retail", "steven@museum.uk", new Date("2022-04-04"), "day-shift"],
+                [129, "Jennifer Walters", "Legal", "jen@law.hulk", new Date("2022-05-05"), "lawyer"],
+                [130, "Matt Murdock", "Legal", "matt@nelsonmurdock.com", new Date("2022-06-06"), "lawyer"]
             ];
-            const ws1 = XLSX.utils.aoa_to_sheet(data1);
+            const ws1 = XLSX.utils.aoa_to_sheet([header1, ...rows1]);
             XLSX.utils.book_append_sheet(wb, ws1, "Master_CRM");
 
-            // --- SHEET 2: "Incoming_Messy" (Dirty Data) ---
-            const data2 = [
-                ["Ref ID", "User Input Name", "Contact Info", "Status"],
-                ["REF_01", "John Smith", "john.smith@example.com", "Exact Match"], 
-                ["REF_02", "smith, john", "N/A", "Robust Punctuation"], 
-                ["REF_03", "Smith John", "N/A", "Robust Word Order"], 
-                ["REF_04", "Allice Wnderland", "N/A", "Fuzzy Match"], 
-                ["REF_05", "", "bob@build.it", "Ragged/Empty Lead"], // Empty name to test alignment
-                [null, null, null, null], // Empty row to test stability
-                ["REF_06", "David Bowie", "starman@mars.com", "No Match"] 
+            // --- SHEET 2: "Incoming_Data" (Messy, Ragged, 30+ Rows) ---
+            const header2 = ["Import_ID", "Raw Name", "Matched Email", "Status Code"];
+            const rows2 = [
+                ["IMP_01", "Tony Stark", "tony@stark.com", "OK"], // Exact
+                ["IMP_02", "stark, tony", "tony@stark.com", "CASE_PUNCT"], // Robust Punctuation
+                ["IMP_03", "Stark Tony", "tony@stark.com", "WORD_ORDER"], // Robust Word Order (Crucial Test)
+                ["IMP_04", "Rogers, Steve", "steve@shield.gov", "OK"],
+                ["IMP_05", "Natasha  Romanoff", "nat@shield.gov", "SPACE"],
+                ["IMP_06", "Bruce Baner", "bruce@gamma.lab", "FUZZY_TYPO"], // Fuzzy
+                ["IMP_07", "Odinson, Thor", "thor@asgard.realm", "OK"],
+                ["IMP_08", "Clint  Barton", "clint@hawkeye.com", "SPACE"],
+                ["IMP_09", "Wanda Maximof", "wanda@westview.com", "FUZZY"],
+                ["IMP_10", "Vision Android", "vision@android.net", "PARTIAL"],
+                ["IMP_11", "Parker, Peter", "peter@dailybugle.com", "OK"],
+                ["IMP_12", "Dr. Strange", "doctor@strange.com", "TITLE_ADDED"], // Fuzzy might catch
+                ["IMP_13", "TChalla", "king@wakanda.gov", "PUNCT_MISSING"],
+                ["IMP_14", "Scott Lang", "scott@pym.tech", "OK"],
+                ["IMP_15", "Hope VanDyne", "hope@pym.tech", "SPACE_MISSING"],
+                ["IMP_16", "Danvers Carol", "captain@marvel.space", "WORD_ORDER"],
+                ["IMP_17", "Fury, Nick", "fury@shield.gov", "OK"],
+                ["IMP_18", "Maria  Hill", "hill@shield.gov", "SPACE"],
+                ["IMP_19", "Sam Wilson", "falcon@airforce.mil", "OK"],
+                ["IMP_20", "Barnes, Bucky", "wintersoldier@hydra.old", "OK"],
+                ["IMP_21", "Loki", "loki@tva.time", "PARTIAL"],
+                ["IMP_22", "Sylvie Laufeydottir", "sylvie@tva.time", "ADDED_NAME"],
+                ["IMP_23", "Shang Chi", "shang@tenrings.org", "HYPHEN_TO_SPACE"],
+                ["IMP_24", "Katy", "katy@valet.com", "PARTIAL"],
+                ["IMP_25", "Wong The Sorcerer", "wong@library.kamar", "ADDED_TITLE"],
+                ["IMP_26", "America Chavez", "america@multiverse.org", "OK"],
+                ["IMP_27", "Bishop, Kate", "kate@hawkeye.com", "OK"],
+                ["IMP_28", "Yelena Belova", "yelena@widow.ops", "OK"],
+                ["IMP_29", "Mark Spector", "moon@knight.egypt", "FUZZY_NAME"], // Marc vs Mark
+                // RAGGED DATA TEST: Empty leading cells for Row 30
+                ["IMP_30", "", "bruce@gamma.lab", "MISSING_NAME_ALIGNMENT_TEST"] 
             ];
-            const ws2 = XLSX.utils.aoa_to_sheet(data2);
-            XLSX.utils.book_append_sheet(wb, ws2, "Incoming_Messy");
+            const ws2 = XLSX.utils.aoa_to_sheet([header2, ...rows2]);
+            XLSX.utils.book_append_sheet(wb, ws2, "Incoming_Data");
 
-            // --- SHEET 3: "Dedupe_Test" ---
-            const data3 = [
-                ["Product", "SKU", "Price"],
-                ["Widget A", "SKU-100", 10.99],
-                ["Widget B", "SKU-200", 15.50],
-                ["Widget A", "SKU-100", 10.99], // Exact Duplicate
-                ["Widget C", "SKU-300", 5.00],
-                ["Widget B ", "SKU-200", 15.50] // Duplicate with trailing space
+            // --- SHEET 3: "Transactions" (For Grouping & Dedupe, 30+ Rows) ---
+            const header3 = ["Trans_ID", "Department", "Expense Type", "Amount", "Date"];
+            const rows3 = [
+                ["TX_001", "Sales", "Travel", 500, "2023-01-01"],
+                ["TX_002", "Sales", "Meals", 120, "2023-01-02"],
+                ["TX_003", "Sales", "Travel", 600, "2023-01-03"],
+                ["TX_004", "Sales", "Supplies", 50, "2023-01-04"],
+                ["TX_005", "IT", "Hardware", 1200, "2023-01-05"],
+                ["TX_006", "IT", "Software", 300, "2023-01-06"],
+                ["TX_007", "IT", "Hardware", 1200, "2023-01-05"], // EXACT DUPLICATE of TX_005
+                ["TX_008", "IT", "Services", 150, "2023-01-08"],
+                ["TX_009", "HR", "Training", 2000, "2023-01-09"],
+                ["TX_010", "HR", "Recruiting", 500, "2023-01-10"],
+                ["TX_011", "HR", "Training", 2000, "2023-01-09"], // EXACT DUPLICATE of TX_009
+                ["TX_012", "HR", "Meals", 100, "2023-01-12"],
+                ["TX_013", "Marketing", "Ads", 5000, "2023-01-13"],
+                ["TX_014", "Marketing", "Events", 3000, "2023-01-14"],
+                ["TX_015", "Marketing", "Ads", 1000, "2023-01-15"],
+                ["TX_016", "Sales", "Travel", 450, "2023-01-16"],
+                ["TX_017", "Sales", "Travel", 450, "2023-01-16"], // EXACT DUPLICATE of TX_016
+                ["TX_018", "IT", "Software", 299, "2023-01-18"],
+                ["TX_019", "Operations", "Logistics", 800, "2023-01-19"],
+                ["TX_020", "Operations", "Supplies", 200, "2023-01-20"],
+                ["TX_021", "Operations", "Logistics", 800, "2023-01-19"], // EXACT DUPLICATE of TX_019
+                ["TX_022", "Finance", "Audit", 5000, "2023-01-22"],
+                ["TX_023", "Finance", "Tools", 300, "2023-01-23"],
+                ["TX_024", "Legal", "Consulting", 1500, "2023-01-24"],
+                ["TX_025", "Legal", "Fees", 200, "2023-01-25"],
+                ["TX_026", "Sales", "Meals", 80, "2023-01-26"],
+                ["TX_027", "Sales", "Meals", 80, "2023-01-26"], // EXACT DUPLICATE
+                ["TX_028", "IT", "Hardware", 900, "2023-01-28"],
+                ["TX_029", "HR", "Recruiting", 600, "2023-01-29"],
+                ["TX_030", "Marketing", "Events", 3500, "2023-01-30"]
             ];
-            const ws3 = XLSX.utils.aoa_to_sheet(data3);
-            XLSX.utils.book_append_sheet(wb, ws3, "Dedupe_Test");
+            const ws3 = XLSX.utils.aoa_to_sheet([header3, ...rows3]);
+            XLSX.utils.book_append_sheet(wb, ws3, "Transactions");
 
             // Save File
-            XLSX.writeFile(wb, "EDM_Stress_Test.xlsx");
+            XLSX.writeFile(wb, "EDM_Stress_Test_v2.xlsx");
         }
     </script>
 </body>

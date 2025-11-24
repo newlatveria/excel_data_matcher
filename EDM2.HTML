@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Data Utility (IndexedDB & Network Graph) - Debug Log Enabled</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/idb@7.1.1/build/umd.js"></script> 
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; line-height: 1.6; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: #00d4ff; margin-bottom: 10px; font-size: 2em; }
+        .subtitle { color: #aaa; margin-bottom: 30px; font-size: 0.95em; }
+        
+        /* Upload & Controls */
+        .upload-section { background: #16213e; border: 2px dashed #00d4ff; border-radius: 12px; padding: 40px; text-align: center; margin-bottom: 30px; transition: all 0.3s; }
+        .upload-section:hover { border-color: #00ffaa; background: #1a2744; }
+        input[type="file"] { display: none; }
+        .upload-btn { background: linear-gradient(135deg, #00d4ff, #0099cc); color: white; padding: 15px 40px; border: none; border-radius: 8px; font-size: 1.1em; cursor: pointer; transition: transform 0.2s; font-weight: 600; }
+        .upload-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4); }
+        .btn { background: linear-gradient(135deg, #00d4ff, #0099cc); color: white; padding: 14px 30px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; transition: all 0.2s; font-weight: 600; width: 100%; }
+        .btn:disabled { background: #555; cursor: not-allowed; transform: none; }
+        .controls { background: #16213e; border-radius: 12px; padding: 25px; margin-bottom: 30px; display: none; }
+        .control-group { margin-bottom: 20px; }
+        
+        /* File Name Display (NEW) */
+        #fileNameDisplay { margin-top: 15px; font-size: 1.1em; font-weight: bold; color: #00ffaa; display: none; }
+
+        /* Form Elements */
+        label { display: block; margin-bottom: 8px; color: #00d4ff; font-weight: 600; font-size: 0.95em; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 12px; background: #0f1626; border: 1px solid #2a3f5f; border-radius: 6px; color: #eee; font-size: 1em; }
+        select { appearance: none; background: #0f1626 url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%2300D4FF%22%20d%3D%22M10%203L6%207L2%203L0%205L6%2011L12%205L10%203Z%22%2F%3E%3C%2Fsvg%3E") no-repeat right 12px center; background-size: 12px; cursor: pointer; }
+        input:focus, select:focus { outline: none; border-color: #00d4ff; }
+        .checkbox-group { display: flex; align-items: center; gap: 10px; }
+        input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+        .checkbox-group label { margin: 0; cursor: pointer; }
+
+        /* Progress Bar */
+        .progress { display: none; background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .progress-bar { width: 100%; height: 30px; background: #0f1626; border-radius: 15px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #00d4ff, #00ffaa); width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .progress-text { color: #aaa; text-align: center; }
+        
+        /* Results Area */
+        .results { display: none; }
+        .stats { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 2em; color: #00d4ff; font-weight: bold; }
+        .stat-label { color: #aaa; font-size: 0.9em; margin-top: 5px; }
+        
+        /* View Toggles */
+        .view-toggle { display: flex; justify-content: center; margin-bottom: 20px; gap: 15px; }
+        .view-btn { background: #16213e; border: 1px solid #2a3f5f; color: #aaa; padding: 10px 25px; border-radius: 20px; cursor: pointer; transition: all 0.3s; font-weight: bold; }
+        .view-btn.active { background: #00d4ff; color: #1a1a2e; border-color: #00d4ff; box-shadow: 0 0 15px rgba(0, 212, 255, 0.4); }
+        
+        /* Table View */
+        .match-group { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .match-header { color: #00d4ff; font-size: 1.2em; font-weight: bold; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #2a3f5f; display: flex; justify-content: space-between; align-items: center; }
+        .table-container { overflow-x: auto; max-height: 450px; overflow-y: auto; border: 1px solid #2a3f5f; border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        th { background: #0f1626; color: #00d4ff; padding: 12px; text-align: left; font-weight: 600; position: sticky; top: 0; z-index: 11; }
+        td { padding: 12px; border-bottom: 1px solid #2a3f5f; }
+        tr:hover { background: #1a2744; }
+        .highlight { background: rgba(0, 212, 255, 0.2); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+        .tab-badge { background: rgba(0, 212, 255, 0.2); color: #00d4ff; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 5px; display: inline-block; margin: 2px 5px 2px 0; white-space: nowrap; }
+        
+        /* Sticky Columns */
+        th:nth-child(1), td:nth-child(1) { position: sticky; left: 0; z-index: 10; background: #0f1626; width: 55px; min-width: 55px; text-align: center; border-right: 1px solid #2a3f5f; }
+        th:nth-child(2), td:nth-child(2) { position: sticky; left: 55px; z-index: 10; background: #0f1626; width: 100px; min-width: 100px; border-right: 1px solid #2a3f5f; }
+        
+        /* Checkbox Containers */
+        .checkbox-container { border: 1px solid #2a3f5f; border-radius: 6px; padding: 10px; height: 150px; overflow-y: auto; background: #0f1626; }
+        .checkbox-item { display: flex; align-items: center; padding: 4px 0; cursor: pointer; }
+        .checkbox-item:hover { background: #1a2744; }
+        .checkbox-item input[type="checkbox"] { margin-right: 8px; min-width: 15px; min-height: 15px; }
+        .checkbox-item label { margin: 0; font-weight: normal; color: #eee; cursor: pointer; flex-grow: 1; }
+        
+        /* Sheet Selection */
+        .sheet-button-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; padding: 15px; background: #0f1626; border-radius: 8px; border: 1px solid #2a3f5f; }
+        .sheet-option { background: #16213e; color: #eee; padding: 10px 15px; border: 1px solid #2a3f5f; border-radius: 6px; font-size: 0.9em; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+        .sheet-option:hover { background: #0f1626; border-color: #00d4ff; }
+        .sheet-option.selected { background: #00d4ff; color: #1a1a2e; border-color: #00d4ff; font-weight: 700; box-shadow: 0 0 10px rgba(0, 212, 255, 0.5); }
+        .selection-slot { flex: 1; background: #0f1626; border-radius: 8px; padding: 15px; border: 2px solid #2a3f5f; min-height: 80px; transition: all 0.3s; }
+        #slot1 { border-color: #00ffaa; } 
+        #slot2 { border-color: #ffaa00; } 
+        .slot-header { color: #aaa; font-size: 0.8em; font-weight: 600; margin-bottom: 5px; text-transform: uppercase; }
+        .slot-name-placeholder { color: #555; font-style: italic; padding-top: 5px; font-size: 0.9em; }
+        .slot-name-active { font-size: 1.2em; font-weight: 700; color: #eee; display: flex; justify-content: space-between; align-items: center; }
+        .slot-name-active .remove-btn { background: transparent; border: none; color: #ff6347; cursor: pointer; font-weight: bold; font-size: 0.9em; padding: 5px 10px; border-radius: 4px; }
+        .slot-name-active .remove-btn:hover { background: rgba(255, 99, 71, 0.2); color: #ff0000; }
+
+        /* Relationship View */
+        .relationship-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px; }
+        .rel-card { background: #16213e; border: 1px solid #2a3f5f; border-radius: 8px; overflow: hidden; transition: transform 0.2s; }
+        .rel-card:hover { transform: translateY(-3px); border-color: #00ffaa; }
+        .rel-header { background: #0f1626; padding: 12px 15px; border-bottom: 1px solid #2a3f5f; display: flex; justify-content: space-between; align-items: center; }
+        .rel-source-id { color: #00ffaa; font-weight: bold; font-size: 1.1em; }
+        .rel-count { background: #2a3f5f; color: #eee; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; }
+        .rel-body { padding: 15px; max-height: 300px; overflow-y: auto; }
+        .rel-link { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #333; }
+        .rel-link:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .rel-target { color: #ffaa00; font-weight: 600; margin-bottom: 4px; display: block; }
+        .rel-reason { color: #aaa; font-size: 0.85em; display: block; }
+        .rel-reason span { color: #00d4ff; }
+
+        /* --- NETWORK VIEW STYLES --- */
+        #networkGraph { width: 100%; height: 600px; border: 1px solid #2a3f5f; background: #0f1626; border-radius: 12px; }
+        .network-legend { display: flex; justify-content: center; gap: 20px; margin-bottom: 10px; font-size: 0.9em; color: #aaa; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        /* --- END NETWORK VIEW STYLES --- */
+
+        .export-btn { width: auto !important; padding: 10px 15px; font-size: 0.9em; margin-left: 10px; }
+        .export-btn.duplicate-export { background: linear-gradient(135deg, #ff9900, #cc7a00); }
+        .export-btn:hover { box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💾 Excel Data Utility (IndexedDB & Network Graph)</h1>
+        <p class="subtitle">Data is stored robustly in your browser's local database. <strong>Please open Console (F12) for logs.</strong></p>
+
+        <div class="upload-section">
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+            <label for="fileInput" class="upload-btn">Choose Excel File</label>
+            <div id="fileNameDisplay"></div>
+            <p style="margin-top: 15px; color: #aaa;">Supports .xlsx and .xls formats</p>
+        </div>
+
+        <div class="controls" id="controls">
+            
+            <label class="selection-status" id="selectionStatus">
+                <span style="font-size:1.1em; color:#00ffaa; font-weight:700;">STEP 1: Select Sheet(s)</span>
+                <br>Click a sheet name below to assign it to a slot.
+            </label>
+            
+            <div id="selectionVisualizer" style="display: flex; gap: 20px; margin-bottom: 20px;">
+                <div id="slot1" class="selection-slot">
+                    <div class="slot-header">Source Sheet (1)</div>
+                    <div id="slot1Name" class="slot-name-placeholder">Click a sheet name below...</div>
+                </div>
+                <div id="slot2" class="selection-slot">
+                    <div class="slot-header">Target Sheet (2)</div>
+                    <div id="slot2Name" class="slot-name-placeholder">Click a second sheet name...</div>
+                </div>
+            </div>
+
+            <div id="sheetSelector" class="sheet-button-list"></div>
+
+            <div class="control-group" id="dedupeControls" style="display: none;">
+                <button class="btn" id="dedupeBtn">🧹 Find and Remove Duplicates within Sheet</button>
+            </div>
+
+            <div id="matchControls" style="display: none;">
+                
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="dedupeSourceSheets" checked>
+                        <label for="dedupeSourceSheets">🧼 **Pre-Clean Source Sheets** (Remove duplicate rows within Sheet 1 & Sheet 2 before comparison)</label>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="robustExactMatch">
+                        <label for="robustExactMatch">💪 **Enable Robust Exact Match** (Aggressively strips spaces, punctuation, and numbers for **Exact** check: `JohnSmith` = `john,Smith` = `Smith2John`)</label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="removeDuplicates" checked>
+                        <label for="removeDuplicates">🧹 **Remove Cross-Sheet Duplicate Matches** (Keeps only one instance of a matched row pair, e.g., prevents matching on both ID *and* Name if both link the same Sheet1 Row to the same Sheet2 Row)</label>
+                    </div>
+                </div>
+                
+                <div class="control-group" id="ignoreControls" style="border-top: 1px solid #2a3f5f; padding-top: 20px; border-bottom: 1px solid #2a3f5f; padding-bottom: 20px;">
+                    <h3 style="color: #ffaa00; margin-bottom: 15px;">🚫 Columns to IGNORE (Exhaustive Match Only)</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <label id="ignoreCol1Label">Columns to Ignore in Sheet 1</label>
+                            <div id="ignoreCols1Container" class="checkbox-container"></div>
+                        </div>
+                        <div>
+                            <label id="ignoreCol2Label">Columns to Ignore in Sheet 2</label>
+                            <div id="ignoreCols2Container" class="checkbox-container"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="fuzzyMatch">
+                        <label for="fuzzyMatch">✨ Enable Fuzzy Matching (Levenshtein Distance)</label>
+                    </div>
+                </div>
+
+                <div class="control-group" id="fuzzyOptions" style="display: none;">
+                    <label>Fuzzy Match Threshold (0-100, lower = more lenient, recommended 20)</label>
+                    <input type="number" id="fuzzyThreshold" min="0" max="100" value="20" step="5">
+                </div>
+                
+                <div class="control-group" id="targetedMatchControls" style="border-top: 1px solid #2a3f5f; padding-top: 20px;">
+                    <h3 style="color: #00ffaa; margin-bottom: 15px;">🎯 Targeted Column Match</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <label id="col1Label">Sheet 1 Column (to search)</label>
+                            <select id="column1Selector"></select>
+                        </div>
+                        <div>
+                            <label id="col2Label">Sheet 2 Column(s) (to match against)</label>
+                            <select id="column2Selector"></select>
+                            <p style="color: #aaa; font-size: 0.85em; margin-top: 5px;">*Select **"ALL"** to compare Sheet 1's chosen column against every column in Sheet 2.*</p>
+                        </div>
+                    </div>
+                    <button class="btn" id="targetedMatchBtn" style="margin-top: 20px;">🎯 Run Targeted Match</button>
+                </div>
+                <button class="btn" id="matchBtn" disabled>Find All Potential Matches (Exhaustive)</button>
+            </div>
+        </div>
+
+        <div class="progress" id="progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+            <div class="progress-text" id="progressText">Awaiting file upload...</div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="stats" id="stats"></div>
+            <div class="info" id="resultsInfo">⚠️ Only the first **1,000** rows/matches will be displayed below. All results are included in the exported files.</div>
+            
+            <div class="view-toggle" id="viewToggleContainer" style="display: none;">
+                <button class="view-btn active" id="viewTableBtn" onclick="switchView('table')">📋 Table View</button>
+                <button class="view-btn" id="viewRelBtn" onclick="switchView('relationship')">🔗 Relationship Explorer</button>
+                <button class="view-btn" id="viewNetBtn" onclick="switchView('network')">🕸️ Network Graph</button>
+            </div>
+
+            <div id="tableViewContainer">
+                <div id="groupFilters" class="controls" style="display: none; padding: 20px; margin-bottom: 20px;">
+                    <h3 style="color: #00ffaa; margin-bottom: 15px;">🔍 Global Match Group Filters (Filter groups, not rows)</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                        <div class="control-group" style="margin-bottom: 0;">
+                            <label for="headerSelector">Matched Column Pair Filter</label>
+                            <select id="headerSelector">
+                                <option value="all">--- Show All Column Pairs ---</option>
+                            </select>
+                        </div>
+                        <div class="control-group" style="margin-bottom: 0;">
+                            <label for="minMatches">Min Match Count</label>
+                            <input type="number" id="minMatches" min="0" value="0" step="1">
+                        </div>
+                        <div class="control-group" style="margin-bottom: 0;">
+                            <label for="maxMatches">Max Match Count</label>
+                            <input type="number" id="maxMatches" min="0" value="9999999" step="1">
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="filterFuzzy">
+                            <label for="filterFuzzy">🧠 **Show Only Groups with Fuzzy Matches**</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="exportIgnoreControls" class="controls" style="display: none; padding: 20px; margin-bottom: 20px;">
+                    <h3 style="color: #ffaa00; margin-bottom: 15px;">📥 Columns to Exclude from EXPORT</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <label id="exportIgnoreCol1Label">Columns to Exclude in Sheet 1</label>
+                            <div id="exportIgnoreCols1Container" class="checkbox-container"></div>
+                        </div>
+                        <div>
+                            <label id="exportIgnoreCol2Label">Columns to Exclude in Sheet 2</label>
+                            <div id="exportIgnoreCols2Container" class="checkbox-container"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="match-groups" id="matchGroups"></div>
+                <div id="exportButtonContainer" style="display: flex; gap: 20px; margin-top: 20px;">
+                    <button class="btn" id="exportAllToSingleSheetBtn" style="background: linear-gradient(135deg, #3498db, #2980b9); font-size: 1.1em; flex-grow: 1; display: none;">Export ALL Selected Match Rows to a Single Sheet (Combined)</button>
+                    <button class="btn" id="exportAllBtn" style="background: linear-gradient(135deg, #e74c3c, #c0392b); font-size: 1.1em; flex-grow: 1; display: none;">Export ALL Selected Match Rows to Single Workbook (Multiple Sheets)</button>
+                </div>
+            </div>
+
+            <div id="relationshipViewContainer" style="display: none;">
+                <div class="info" style="background: #2a3f5f; border-left: 5px solid #00ffaa;">
+                    <h3>🔗 Relationship Explorer</h3>
+                    <p>This view groups all findings by the **Source Row**. It shows exactly which rows in the Target Sheet were matched and via which columns.</p>
+                </div>
+                <div class="relationship-container" id="relationshipContent"></div>
+            </div>
+            
+            <div id="networkViewContainer" style="display: none;">
+                <div class="info" style="background: #2a3f5f; border-left: 5px solid #00d4ff;">
+                    <h3>🕸️ Network Graph Visualization</h3>
+                    <p>Visualizes matches as connected nodes. <strong>Note:</strong> Displays based on current global filters to maintain performance.</p>
+                </div>
+                <div class="network-legend" id="networkLegend">
+                    </div>
+                <div id="networkGraph"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const DB_NAME = 'ExcelDataUtilityDB';
+        const DB_VERSION = 2; 
+        const ROW_STORE_PREFIX = 'Sheet_';
+        const METADATA_STORE_NAME = 'SheetMetadata';
+        
+        let db = null;
+        let parsingWorker = null; 
+        
+        let allMatches = []; 
+        let currentFilteredGroups = []; 
+        let matchingWorker = null; 
+        let selectedSheets = []; 
+        let sheetNames = []; 
+        let sheetHeaders = {}; 
+        
+        let uniqueSheetData = null;      
+        let duplicateRowsData = null;    
+        let removedDuplicatesCount = 0; 
+        
+        const fileInput = document.getElementById('fileInput');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const controls = document.getElementById('controls');
+        const results = document.getElementById('results');
+        const progress = document.getElementById('progress');
+        const matchBtn = document.getElementById('matchBtn');
+        const dedupeBtn = document.getElementById('dedupeBtn');
+        const fuzzyMatch = document.getElementById('fuzzyMatch');
+        const fuzzyOptions = document.getElementById('fuzzyOptions');
+        const removeDuplicates = document.getElementById('removeDuplicates');
+        const dedupeSourceSheets = document.getElementById('dedupeSourceSheets');
+        const robustExactMatch = document.getElementById('robustExactMatch'); 
+        const sheetSelectorDiv = document.getElementById('sheetSelector');
+        const selectionStatus = document.getElementById('selectionStatus');
+        const exportAllBtn = document.getElementById('exportAllBtn');
+        const exportAllToSingleSheetBtn = document.getElementById('exportAllToSingleSheetBtn'); // NEW
+        const exportButtonContainer = document.getElementById('exportButtonContainer'); // NEW
+        const dedupeControls = document.getElementById('dedupeControls');
+        const matchControls = document.getElementById('matchControls');
+        const resultsInfo = document.getElementById('resultsInfo');
+        const slot1NameDiv = document.getElementById('slot1Name');
+        const slot2NameDiv = document.getElementById('slot2Name');
+        const targetedMatchControls = document.getElementById('targetedMatchControls');
+        const column1Selector = document.getElementById('column1Selector');
+        const column2Selector = document.getElementById('column2Selector');
+        const targetedMatchBtn = document.getElementById('targetedMatchBtn');
+        const ignoreCols1Container = document.getElementById('ignoreCols1Container');
+        const ignoreCols2Container = document.getElementById('ignoreCols2Container');
+        const groupFiltersDiv = document.getElementById('groupFilters');
+        const headerSelector = document.getElementById('headerSelector'); 
+        const minMatchesInput = document.getElementById('minMatches');
+        const maxMatchesInput = document.getElementById('maxMatches');
+        const filterFuzzyCheckbox = document.getElementById('filterFuzzy');
+        const exportIgnoreControlsDiv = document.getElementById('exportIgnoreControls');
+        const exportIgnoreCols1Container = document.getElementById('exportIgnoreCols1Container');
+        const exportIgnoreCols2Container = document.getElementById('exportIgnoreCols2Container');
+        const exportIgnoreCol1Label = document.getElementById('exportIgnoreCol1Label');
+        const exportIgnoreCol2Label = document.getElementById('exportIgnoreCol2Label');
+        
+        const viewToggleContainer = document.getElementById('viewToggleContainer');
+        const tableViewContainer = document.getElementById('tableViewContainer');
+        const relationshipViewContainer = document.getElementById('relationshipViewContainer');
+        const relationshipContent = document.getElementById('relationshipContent');
+        const networkViewContainer = document.getElementById('networkViewContainer');
+        const viewTableBtn = document.getElementById('viewTableBtn');
+        const viewRelBtn = document.getElementById('viewRelBtn');
+        const viewNetBtn = document.getElementById('viewNetBtn');
+
+        fileInput.addEventListener('change', handleFile);
+        fuzzyMatch.addEventListener('change', () => {
+            fuzzyOptions.style.display = fuzzyMatch.checked ? 'block' : 'none';
+        });
+        
+        matchBtn.addEventListener('click', () => startMatching(false));
+        targetedMatchBtn.addEventListener('click', () => startMatching(true));
+        exportAllBtn.addEventListener('click', () => exportResults()); 
+        exportAllToSingleSheetBtn.addEventListener('click', exportAllToSingleSheet); // NEW LISTENER
+        dedupeBtn.addEventListener('click', startDeduplication); 
+        headerSelector.addEventListener('change', filterAndDisplayResults); 
+        minMatchesInput.addEventListener('input', filterAndDisplayResults);
+        maxMatchesInput.addEventListener('input', filterAndDisplayResults);
+        filterFuzzyCheckbox.addEventListener('change', filterAndDisplayResults);
+
+        // --- VIEW SWITCHING ---
+        window.switchView = function(mode) {
+            tableViewContainer.style.display = 'none';
+            relationshipViewContainer.style.display = 'none';
+            networkViewContainer.style.display = 'none';
+            
+            viewTableBtn.classList.remove('active');
+            viewRelBtn.classList.remove('active');
+            viewNetBtn.classList.remove('active');
+
+            if (mode === 'table') {
+                tableViewContainer.style.display = 'block';
+                viewTableBtn.classList.add('active');
+            } else if (mode === 'relationship') {
+                relationshipViewContainer.style.display = 'block';
+                viewRelBtn.classList.add('active');
+                renderRelationshipView(); 
+            } else if (mode === 'network') {
+                networkViewContainer.style.display = 'block';
+                viewNetBtn.classList.add('active');
+                renderNetworkView();
+            }
+        }
+        
+        // --- NETWORK GRAPH RENDERING ---
+        function renderNetworkView() {
+            const groupsToRender = currentFilteredGroups.length > 0 ? currentFilteredGroups : allMatches;
+            
+            let totalMatches = groupsToRender.reduce((sum, g) => sum + g.matches.length, 0);
+            if (totalMatches > 2000) {
+                if(!confirm(`Warning: The current filter contains ${totalMatches} connections. Rendering this many nodes might slow down your browser. Do you want to continue?`)) return;
+            }
+
+            // Dynamic Legend
+            const s1Name = selectedSheets[0] || 'Sheet 1';
+            const s2Name = selectedSheets[1] || 'Sheet 2';
+            const legendHtml = `
+                <div class="legend-item"><span class="dot" style="background:#97C2FC; border:1px solid #2B7CE9;"></span> ${s1Name} (Source)</div>
+                <div class="legend-item"><span class="dot" style="background:#FB7E81; border:1px solid #FA0A10;"></span> ${s2Name} (Target)</div>
+            `;
+            document.getElementById('networkLegend').innerHTML = legendHtml;
+            
+            const nodes = new vis.DataSet();
+            const edges = new vis.DataSet();
+            const addedNodes = new Set();
+            
+            groupsToRender.forEach(group => {
+                group.matches.forEach(match => {
+                    const s1Id = `s1_${match.originalRow1}`;
+                    const s2Id = `s2_${match.originalRow2}`;
+                    
+                    if (!addedNodes.has(s1Id)) {
+                        nodes.add({
+                            id: s1Id,
+                            label: `Row ${match.originalRow1}\n${String(match.val1).substring(0, 15)}`,
+                            title: `${s1Name} Row #${match.originalRow1}: ${match.val1}`,
+                            color: '#97C2FC', 
+                            shape: 'dot'
+                        });
+                        addedNodes.add(s1Id);
+                    }
+                    
+                    if (!addedNodes.has(s2Id)) {
+                        nodes.add({
+                            id: s2Id,
+                            label: `Row ${match.originalRow2}\n${String(match.val2).substring(0, 15)}`,
+                            title: `${s2Name} Row #${match.originalRow2}: ${match.val2}`,
+                            color: '#FB7E81', 
+                            shape: 'dot'
+                        });
+                        addedNodes.add(s2Id);
+                    }
+                    
+                    edges.add({
+                        from: s1Id,
+                        to: s2Id,
+                        label: group.header1, 
+                        dashes: match.isFuzzy, 
+                        color: { color: match.isFuzzy ? '#FFA500' : '#848484' }
+                    });
+                });
+            });
+            
+            const container = document.getElementById('networkGraph');
+            const data = { nodes: nodes, edges: edges };
+            const options = {
+                nodes: { font: { color: '#eee' } },
+                physics: {
+                    stabilization: true,
+                    barnesHut: { gravitationalConstant: -2000, springConstant: 0.04, springLength: 95 }
+                },
+                interaction: { tooltipDelay: 200 }
+            };
+            
+            new vis.Network(container, data, options);
+        }
+        
+        // --- RELATIONSHIP VIEW ---
+        function renderRelationshipView() {
+            relationshipContent.innerHTML = '';
+            const relationshipMap = new Map();
+            const groupsToProcess = currentFilteredGroups.length > 0 ? currentFilteredGroups : allMatches;
+
+            groupsToProcess.forEach(group => {
+                group.matches.forEach(match => {
+                    const sourceRowIdx = match.originalRow1;
+                    const targetRowIdx = match.originalRow2;
+                    
+                    if (!relationshipMap.has(sourceRowIdx)) {
+                        relationshipMap.set(sourceRowIdx, {
+                            sourceRow: sourceRowIdx,
+                            targets: new Map()
+                        });
+                    }
+                    
+                    const sourceEntry = relationshipMap.get(sourceRowIdx);
+                    
+                    if (!sourceEntry.targets.has(targetRowIdx)) {
+                        sourceEntry.targets.set(targetRowIdx, {
+                            targetRow: targetRowIdx,
+                            reasons: []
+                        });
+                    }
+                    
+                    const targetEntry = sourceEntry.targets.get(targetRowIdx);
+                    targetEntry.reasons.push(`${group.header1} ↔ ${group.header2} (${match.isFuzzy ? 'FUZZY' : 'EXACT'})`);
+                });
+            });
+            
+            if (relationshipMap.size === 0) {
+                relationshipContent.innerHTML = '<div class="info">No relationships found matching criteria.</div>';
+                return;
+            }
+            
+            const sortedSourceIndices = Array.from(relationshipMap.keys()).sort((a, b) => a - b);
+            
+            sortedSourceIndices.forEach(sourceIdx => {
+                const data = relationshipMap.get(sourceIdx);
+                const targets = Array.from(data.targets.values());
+                
+                const card = document.createElement('div');
+                card.className = 'rel-card';
+                
+                let linksHtml = targets.map(t => `
+                    <div class="rel-link">
+                        <span class="rel-target">🔗 Linked to ${selectedSheets[1] || 'Target'}, Row #${t.targetRow}</span>
+                        <span class="rel-reason">Matched via: <span>${t.reasons.join(', ')}</span></span>
+                    </div>
+                `).join('');
+
+                card.innerHTML = `
+                    <div class="rel-header">
+                        <span class="rel-source-id">${selectedSheets[0] || 'Source'}, Row #${data.sourceRow}</span>
+                        <span class="rel-count">${targets.length} Target Row(s)</span>
+                    </div>
+                    <div class="rel-body">${linksHtml}</div>
+                `;
+                relationshipContent.appendChild(card);
+            });
+        }
+
+        // --- EXISTING LOGIC (DB, Workers, Table Render) ---
+
+        async function initDB() {
+            db = await idb.openDB(DB_NAME, DB_VERSION, {
+                upgrade(db, oldVersion, newVersion, transaction) {
+                    if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) {
+                         db.createObjectStore(METADATA_STORE_NAME, { keyPath: 'sheetName' });
+                    }
+                }
+            });
+            return db;
+        }
+        
+        async function deleteCurrentDB() {
+            if (db) db.close();
+            await idb.deleteDB(DB_NAME);
+        }
+        
+        async function getMetadata() {
+            if (!db) { try { await initDB(); } catch(e) { return; } }
+            const metadata = await db.getAll(METADATA_STORE_NAME); 
+            sheetNames = metadata.map(m => m.sheetName);
+            sheetHeaders = {};
+            metadata.forEach(m => { sheetHeaders[m.sheetName] = m.headers; });
+        }
+
+        async function getHeadersForSheet(sheetName) {
+            if (sheetHeaders[sheetName]) return sheetHeaders[sheetName];
+            if (!db) await initDB();
+            const metadata = await db.get(METADATA_STORE_NAME, sheetName);
+            if (metadata) { sheetHeaders[sheetName] = metadata.headers; return metadata.headers; }
+            return [];
+        }
+        
+        async function getAllRowsFromStore(storeName) {
+            if (!db) await initDB();
+            const rows = [];
+            let cursor = await db.transaction(storeName).store.openCursor(); 
+            while (cursor) { rows.push(cursor.value.data); cursor = await cursor.continue(); }
+            return rows;
+        }
+
+        function createParsingWorker(arrayBuffer, fileName) {
+            const workerScript = `
+                importScripts('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+                importScripts('https://cdn.jsdelivr.net/npm/idb@7.1.1/build/umd.js');
+                const DB_NAME = 'ExcelDataUtilityDB';
+                const ROW_STORE_PREFIX = 'Sheet_';
+                const METADATA_STORE_NAME = 'SheetMetadata';
+                const DB_VERSION_FOR_SHEET_CREATION = 2; 
+                self.onmessage = async function(e) {
+                    try {
+                        const { fileData } = e.data;
+                        self.postMessage({ type: 'progress', percent: 10, text: 'Worker: Reading file...' });
+                        const data = new Uint8Array(fileData);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        self.postMessage({ type: 'progress', percent: 30, text: \`Worker: Found \${workbook.SheetNames.length} sheets.\` });
+                        const db = await idb.openDB(DB_NAME, DB_VERSION_FOR_SHEET_CREATION, { 
+                            upgrade(db, oldVersion, newVersion, transaction) {
+                                if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) db.createObjectStore(METADATA_STORE_NAME, { keyPath: 'sheetName' });
+                                workbook.SheetNames.forEach(sheetName => {
+                                    const storeName = ROW_STORE_PREFIX + sheetName;
+                                    if (!db.objectStoreNames.contains(storeName)) db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
+                                });
+                            }
+                        });
+                        self.postMessage({ type: 'progress', percent: 50, text: 'Worker: Storing data...' });
+                        let totalRows = 0;
+                        let completedSheets = 0;
+                        const storeNames = [METADATA_STORE_NAME, ...workbook.SheetNames.map(name => ROW_STORE_PREFIX + name)];
+                        const tx = db.transaction(storeNames, 'readwrite'); 
+                        for (const sheetName of workbook.SheetNames) {
+                            const sheetStore = tx.objectStore(ROW_STORE_PREFIX + sheetName);
+                            const metadataStore = tx.objectStore(METADATA_STORE_NAME);
+                            const worksheet = workbook.Sheets[sheetName];
+                            const ref = worksheet['!ref'];
+                            const sheetAsAoA = XLSX.utils.sheet_to_json(worksheet, { 
+                                header: 1, defval: '', raw: true, cellDates: false, range: ref
+                            });
+                            const processedJson = sheetAsAoA.map(row => row.map(cell => {
+                                if (typeof cell === 'number' && !isNaN(cell)) {
+                                    if (cell >= 1 && cell < 100000) return XLSX.SSF.format('yyyy-mm-dd hh:mm:ss', cell);
+                                    return String(cell);
+                                } else if (cell === undefined || cell === null) return '';
+                                return cell;
+                            }));
+                            const headers = processedJson[0] || [];
+                            const dataRows = processedJson.slice(1);
+                            metadataStore.put({ sheetName: sheetName, headers: headers, totalRows: dataRows.length });
+                            for (const row of processedJson) { await sheetStore.add({ data: row }); }
+                            totalRows += dataRows.length;
+                            completedSheets++;
+                            self.postMessage({ type: 'progress', percent: 50 + (completedSheets / workbook.SheetNames.length) * 40, text: \`Worker: Storing '\${sheetName}'...\` });
+                        }
+                        await tx.done; 
+                        db.close(); 
+                        self.postMessage({ type: 'complete', sheetNames: workbook.SheetNames, totalRows: totalRows, text: 'Parsing complete!' });
+                    } catch (error) { self.postMessage({ type: 'error', message: error.message, stack: error.stack }); }
+                };
+            `;
+            const blob = new Blob([workerScript], { type: 'application/javascript' });
+            return new Worker(URL.createObjectURL(blob));
+        }
+
+        async function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            fileNameDisplay.textContent = '📂 Current File: ' + file.name;
+            fileNameDisplay.style.display = 'block';
+
+            selectedSheets = []; matchBtn.disabled = true; targetedMatchBtn.disabled = true;
+            results.style.display = 'none'; controls.style.display = 'none'; progress.style.display = 'block';
+            sheetSelectorDiv.innerHTML = '';
+            await deleteCurrentDB(); 
+            updateProgress(5, `Starting file read...`);
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const arrayBuffer = event.target.result;
+                const worker = createParsingWorker(arrayBuffer, file.name);
+                worker.postMessage({ fileData: arrayBuffer }, [arrayBuffer]); 
+                worker.onmessage = async (workerEvent) => {
+                    const data = workerEvent.data;
+                    if (data.type === 'progress') updateProgress(data.percent, data.text);
+                    else if (data.type === 'complete') {
+                        await initDB(); await getMetadata(); 
+                        initializeSheetSelector(data.sheetNames);
+                        updateProgress(100, 'Ready.');
+                        setTimeout(() => { progress.style.display = 'none'; controls.style.display = 'block'; updateSelectionSlots(); updateSelectionStatus(); }, 500);
+                    } else if (data.type === 'error') { alert(data.message); }
+                };
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function initializeSheetSelector(names) {
+            sheetSelectorDiv.innerHTML = '';
+            names.forEach(sheetName => {
+                const sheetBtn = document.createElement('div');
+                sheetBtn.className = 'sheet-option';
+                sheetBtn.textContent = sheetName;
+                sheetBtn.setAttribute('data-sheet-name', sheetName); 
+                sheetBtn.onclick = () => toggleSheetSelection(sheetName); 
+                sheetSelectorDiv.appendChild(sheetBtn);
+            });
+        }
+
+        function updateProgress(percent, text) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const clampedPercent = Math.max(0, Math.min(100, percent)); 
+            progressFill.style.width = clampedPercent + '%';
+            progressFill.textContent = Math.round(clampedPercent) + '%';
+            progressText.textContent = text;
+        }
+
+        function getCheckedColumnIndices(containerElement) {
+            const checkboxes = containerElement.querySelectorAll('input[type="checkbox"]');
+            const selectedValues = [];
+            checkboxes.forEach(checkbox => { if (checkbox.checked) selectedValues.push(parseInt(checkbox.value)); });
+            return selectedValues;
+        }
+        
+        function createCheckboxItem(value, labelText, id) {
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox'; checkbox.value = value; checkbox.id = id;
+            const label = document.createElement('label');
+            label.htmlFor = id; label.textContent = labelText;
+            div.appendChild(checkbox); div.appendChild(label);
+            div.addEventListener('click', (e) => { if (e.target !== checkbox) { e.preventDefault(); checkbox.checked = !checkbox.checked; if (id.startsWith('exportIgnore')) updateExportBtnText(); } });
+            return div;
+        }
+
+        async function populateColumnSelectors() {
+            if (selectedSheets.length !== 2) return;
+            const [sheet1Name, sheet2Name] = selectedSheets;
+            const headers1 = await getHeadersForSheet(sheet1Name);
+            const headers2 = await getHeadersForSheet(sheet2Name);
+            document.getElementById('col1Label').textContent = `${sheet1Name} Column (to search)`;
+            document.getElementById('col2Label').textContent = `${sheet2Name} Column(s) (to match against)`;
+            document.getElementById('ignoreCol1Label').textContent = `Columns to Ignore in ${sheet1Name}`;
+            document.getElementById('ignoreCol2Label').textContent = `Columns to Ignore in ${sheet2Name}`;
+            column1Selector.innerHTML = ''; column2Selector.innerHTML = ''; ignoreCols1Container.innerHTML = ''; ignoreCols2Container.innerHTML = ''; 
+            headers1.forEach((header, index) => {
+                const text = `${header || 'Col ' + (index + 1)}`;
+                const option1 = document.createElement('option'); option1.value = index; option1.textContent = text; column1Selector.appendChild(option1);
+                ignoreCols1Container.appendChild(createCheckboxItem(index, text, `ignore1_${index}`));
+            });
+            const allOption = document.createElement('option'); allOption.value = 'all'; allOption.textContent = `--- Match against ALL ${headers2.length} Columns ---`; column2Selector.appendChild(allOption);
+            headers2.forEach((header, index) => {
+                const text = `${header || 'Col ' + (index + 1)}`;
+                const option2 = document.createElement('option'); option2.value = index; option2.textContent = text; column2Selector.appendChild(option2);
+                ignoreCols2Container.appendChild(createCheckboxItem(index, text, `ignore2_${index}`));
+            });
+        }
+        
+        function populateExportIgnoreSelectors(group) {
+            if (!group) return; 
+            const headers1 = group.headers1; const headers2 = group.headers2;
+            exportIgnoreCol1Label.textContent = `Columns to Exclude in ${group.tab1}`;
+            exportIgnoreCol2Label.textContent = `Columns to Exclude in ${group.tab2}`;
+            exportIgnoreCols1Container.innerHTML = ''; exportIgnoreCols2Container.innerHTML = ''; 
+            headers1.forEach((header, index) => {
+                const text = `${header || 'Col ' + (index + 1)}`;
+                exportIgnoreCols1Container.appendChild(createCheckboxItem(index, text, `exportIgnore1_${index}`));
+            });
+            headers2.forEach((header, index) => {
+                const text = `${header || 'Col ' + (index + 1)}`;
+                exportIgnoreCols2Container.appendChild(createCheckboxItem(index, text, `exportIgnore2_${index}`));
+            });
+            exportIgnoreControlsDiv.style.display = 'block';
+        }
+
+        function updateSelectionSlots() {
+            const sheet1Name = selectedSheets[0]; const sheet2Name = selectedSheets[1];
+            if (sheet1Name) {
+                slot1NameDiv.className = 'slot-name-active';
+                slot1NameDiv.innerHTML = `${sheet1Name} <button class="remove-btn" onclick="window.removeSheetFromSlot('${sheet1Name}')">[x Remove]</button>`;
+            } else {
+                slot1NameDiv.className = 'slot-name-placeholder'; slot1NameDiv.textContent = 'Click a sheet name below...';
+            }
+            if (sheet2Name) {
+                slot2NameDiv.className = 'slot-name-active';
+                slot2NameDiv.innerHTML = `${sheet2Name} <button class="remove-btn" onclick="window.removeSheetFromSlot('${sheet2Name}')">[x Remove]</button>`;
+            } else {
+                slot2NameDiv.className = 'slot-name-placeholder'; slot2NameDiv.textContent = sheet1Name ? 'Click a second sheet name...' : 'Click a second sheet name...';
+            }
+            document.querySelectorAll('.sheet-option').forEach(el => {
+                const name = el.getAttribute('data-sheet-name');
+                if (selectedSheets.includes(name)) el.classList.add('selected'); else el.classList.remove('selected');
+            });
+        }
+        
+        window.removeSheetFromSlot = function(sheetName) {
+             const index = selectedSheets.indexOf(sheetName);
+             if (index > -1) { selectedSheets.splice(index, 1); updateSelectionSlots(); updateSelectionStatus(); }
+        }
+
+        async function updateSelectionStatus() {
+            results.style.display = 'none'; exportButtonContainer.style.display = 'none'; exportAllBtn.style.display = 'none'; exportAllToSingleSheetBtn.style.display = 'none'; // UPDATED
+            matchControls.style.display = 'none';
+            dedupeControls.style.display = 'none'; groupFiltersDiv.style.display = 'none'; targetedMatchControls.style.display = 'none';
+            exportIgnoreControlsDiv.style.display = 'none'; viewToggleContainer.style.display = 'none';
+            uniqueSheetData = null; duplicateRowsData = null;
+
+            if (selectedSheets.length === 1) {
+                const sheetName = selectedSheets[0];
+                selectionStatus.innerHTML = `<span style="font-size:1.1em; color:#00ffaa; font-weight:700;">STEP 1: Select Sheet(s)</span><br>Selected: **Deduplication** on <span class="tab-badge">${sheetName}</span>. Ready to clean data.`;
+                dedupeControls.style.display = 'block';
+                resultsInfo.textContent = '⚠️ Only the first 1,000 unique rows will be displayed below. All unique rows are included in the exported file.';
+
+            } else if (selectedSheets.length === 2) {
+                const [sheet1Name, sheet2Name] = selectedSheets;
+                selectionStatus.innerHTML = `<span style="font-size:1.1em; color:#00ffaa; font-weight:700;">STEP 1: Select Sheet(s)</span><br>Selected: **Comparison** between <span class="tab-badge">${sheet1Name}</span> vs <span class="tab-badge">${sheet2Name}</span>.`;
+                matchControls.style.display = 'block';
+                matchBtn.disabled = false;
+                matchBtn.textContent = 'Find All Potential Matches (Exhaustive)';
+                targetedMatchBtn.disabled = false; 
+                targetedMatchControls.style.display = 'block';
+                resultsInfo.textContent = '⚠️ Only the first **1,000** rows/matches will be displayed below. All results are included in the exported files.';
+                await populateColumnSelectors();
+            } else {
+                selectionStatus.innerHTML = `<span style="font-size:1.1em; color:#00ffaa; font-weight:700;">STEP 1: Select Sheet(s)</span><br>Please select one sheet for deduplication or two for comparison. (Selected: 0)`;
+                matchControls.style.display = 'block'; matchBtn.disabled = true; targetedMatchBtn.disabled = true;
+            }
+        }
+
+        function toggleSheetSelection(sheetName) {
+            const index = selectedSheets.indexOf(sheetName);
+            if (index > -1) { selectedSheets.splice(index, 1); } 
+            else { if (selectedSheets.length === 0) selectedSheets.push(sheetName); else if (selectedSheets.length === 1) selectedSheets.push(sheetName); else if (selectedSheets.length === 2) selectedSheets = [sheetName]; }
+            updateSelectionSlots(); updateSelectionStatus();
+        }
+
+        async function startDeduplication() {
+            if (selectedSheets.length !== 1) return;
+            const sheetName = selectedSheets[0];
+            const storeName = ROW_STORE_PREFIX + sheetName;
+            results.style.display = 'none'; progress.style.display = 'block';
+            updateProgress(5, `Starting deduplication on sheet: ${sheetName}...`);
+            const rowsFromDB = await getAllRowsFromStore(storeName);
+            if (rowsFromDB.length < 2) { alert(`Sheet '${sheetName}' is empty.`); progress.style.display = 'none'; return; }
+            const headers = rowsFromDB[0];
+            const dataRows = rowsFromDB.slice(1);
+            const seenRows = new Set(); const uniqueRows = []; const duplicateRows = [];
+            removedDuplicatesCount = 0;
+            for (let i = 0; i < dataRows.length; i++) {
+                const row = dataRows[i];
+                const rowKey = JSON.stringify(row.map(cell => String(cell).trim()));
+                if (seenRows.has(rowKey)) { duplicateRows.push(row); removedDuplicatesCount++; } 
+                else { seenRows.add(rowKey); uniqueRows.push(row); }
+                if (i % 5000 === 0) updateProgress(5 + (i / dataRows.length) * 90, `Processing...`);
+            }
+            uniqueSheetData = [headers, ...uniqueRows];
+            duplicateRowsData = [headers, ...duplicateRows];
+            updateProgress(100, `Deduplication complete!`);
+            setTimeout(() => { progress.style.display = 'none'; displayDeduplicationResults(sheetName, uniqueRows, duplicateRows, headers); }, 500);
+        }
+
+        function displayDeduplicationResults(sheetName, uniqueRows, duplicateRows, headers) {
+            const statsDiv = document.getElementById('stats');
+            const matchGroupsDiv = document.getElementById('matchGroups');
+            results.style.display = 'block'; groupFiltersDiv.style.display = 'none'; exportIgnoreControlsDiv.style.display = 'none'; viewToggleContainer.style.display = 'none';
+            exportButtonContainer.style.display = 'none'; // HIDE EXPORT BUTTONS FOR DEDUPE VIEW
+            const originalLength = uniqueRows.length + duplicateRows.length;
+            statsDiv.innerHTML = `<div class="stat-item"><div class="stat-value">${originalLength}</div><div class="stat-label">Original</div></div><div class="stat-item"><div class="stat-value">${uniqueRows.length}</div><div class="stat-label">Unique</div></div><div class="stat-item"><div class="stat-value">${removedDuplicatesCount}</div><div class="stat-label">Duplicates Removed</div></div>`;
+            matchGroupsDiv.innerHTML = '';
+            const uniqueGroupDiv = document.createElement('div'); uniqueGroupDiv.className = 'match-group';
+            uniqueGroupDiv.innerHTML = `<div class="match-header"><div class="dedupe-group-title">✅ Unique Data</div><button class="btn export-btn" onclick="window.exportUniqueSheet('${sheetName}')">Download Unique</button></div><div class="table-container"><table>${generateDedupeTable(uniqueRows, headers, sheetName, 1000)}</table></div>`;
+            matchGroupsDiv.appendChild(uniqueGroupDiv);
+            if (duplicateRows.length > 0) {
+                const duplicateGroupDiv = document.createElement('div'); duplicateGroupDiv.className = 'match-group';
+                duplicateGroupDiv.innerHTML = `<div class="match-header" style="border-top:2px solid #f06;"><div class="dedupe-group-title">🗑️ Removed Duplicates</div><button class="btn export-btn duplicate-export" onclick="window.exportDuplicateRows('${sheetName}')">Download Duplicates</button></div><div class="table-container"><table>${generateDedupeTable(duplicateRows, headers, sheetName, 1000)}</table></div>`;
+                matchGroupsDiv.appendChild(duplicateGroupDiv);
+            }
+        }
+
+        function generateDedupeTable(rows, headers, sheetName, limit) {
+            let html = '<thead><tr><th>Row #</th>'; headers.forEach((h, i) => { html += `<th>${h || 'Col ' + (i + 1)}</th>`; }); html += '</tr></thead><tbody>';
+            for (let i = 0; i < Math.min(rows.length, limit); i++) {
+                const row = rows[i]; html += `<tr><td>${i + 2}</td>`; row.forEach(cell => { html += `<td>${cell || ''}</td>`; }); html += '</tr>';
+            }
+            html += '</tbody>'; return html;
+        }
+
+        function setupWorker() {
+            const workerScript = `
+                importScripts('https://cdn.jsdelivr.net/npm/idb@7.1.1/build/umd.js');
+                const DB_NAME = 'ExcelDataUtilityDB'; const ROW_STORE_PREFIX = 'Sheet_'; const DB_VERSION = 2; 
+                function normalizeKey(val) { return String(val||'').toLowerCase().replace(/[^a-z0-9]/g, '').trim().split('').sort().join(''); }
+                function standardKey(val) { return String(val||'').toLowerCase().trim(); }
+                function getComparisonKey(val, useRobust) { return useRobust ? normalizeKey(val) : standardKey(val); }
+                function levenshteinDistance(s1, s2) {
+                    const matrix = [];
+                    for (let i=0; i<=s2.length; i++) matrix[i] = [i];
+                    for (let j=0; j<=s1.length; j++) matrix[0][j] = j;
+                    for (let i=1; i<=s2.length; i++) {
+                        for (let j=1; j<=s1.length; j++) {
+                            if (s2.charAt(i-1)===s1.charAt(j-1)) matrix[i][j] = matrix[i-1][j-1];
+                            else matrix[i][j] = Math.min(matrix[i-1][j-1]+1, matrix[i][j-1]+1, matrix[i-1][j]+1);
+                        }
+                    }
+                    return matrix[s2.length][s1.length];
+                }
+                function isMatch(val1, val2, useFuzzy, threshold) {
+                    if (!useFuzzy) return {isMatch:false};
+                    const s1=standardKey(val1), s2=standardKey(val2);
+                    if (!s1 || !s2) return {isMatch:false};
+                    const maxLen=Math.max(s1.length, s2.length);
+                    if (maxLen===0) return {isMatch:true, isFuzzy:false};
+                    const dist=levenshteinDistance(s1,s2);
+                    if (dist <= Math.floor(maxLen*(threshold/100))) return {isMatch:true, isFuzzy:true};
+                    return {isMatch:false};
+                }
+                async function getAllRowsFromStore(db, storeName) {
+                    const rows = []; let cursor = await db.transaction(storeName).store.openCursor();
+                    while (cursor) { rows.push(cursor.value.data); cursor = await cursor.continue(); } return rows;
+                }
+                function findMatchesInColumns(sheet1, sheet2, col1, col2, useFuzzy, threshold, robustExactMatch) {
+                    const matches = []; const row1Data = sheet1.slice(1); const row2Data = sheet2.slice(1);
+                    const keyMap2 = new Map();
+                    for (let j=0; j<row2Data.length; j++) {
+                        const val = row2Data[j][col2]; const key = getComparisonKey(val, robustExactMatch);
+                        if (!key) continue;
+                        if (!keyMap2.has(key)) keyMap2.set(key, []);
+                        keyMap2.get(key).push({ rowIndex: j+1, originalValue: val });
+                    }
+                    const matchedExactly = new Set();
+                    for (let i=0; i<row1Data.length; i++) {
+                        const val1 = row1Data[i][col1]; const key1 = getComparisonKey(val1, robustExactMatch);
+                        if (!key1) continue;
+                        const row1Index = i+1;
+                        if (keyMap2.has(key1)) {
+                            for (const entry of keyMap2.get(key1)) {
+                                const pairKey = \`\${row1Index}-\${entry.rowIndex}\`;
+                                matches.push({ row1: row1Index, row2: entry.rowIndex, val1: val1, val2: entry.originalValue, data1: row1Data[i], data2: row2Data[entry.rowIndex-1], isFuzzy: false });
+                                matchedExactly.add(pairKey);
+                            }
+                        }
+                        if (useFuzzy) {
+                            for (const [_, row2Entries] of keyMap2.entries()) {
+                                for (const entry of row2Entries) {
+                                    const pairKey = \`\${row1Index}-\${entry.rowIndex}\`;
+                                    if (matchedExactly.has(pairKey)) continue;
+                                    const mRes = isMatch(val1, entry.originalValue, useFuzzy, threshold);
+                                    if (mRes.isMatch) matches.push({ row1: row1Index, row2: entry.rowIndex, val1: val1, val2: entry.originalValue, data1: row1Data[i], data2: row2Data[entry.rowIndex-1], isFuzzy: true });
+                                }
+                            }
+                        }
+                    }
+                    return { matches: matches, hasFuzzy: matches.some(m=>m.isFuzzy) };
+                }
+                function preCleanComparisonData(originalData) {
+                    const headers = originalData[0]; const dataRows = originalData.slice(1);
+                    const seen = new Set(); const cleaned = []; const map = {};
+                    for (let i=0; i<dataRows.length; i++) {
+                        const key = JSON.stringify(dataRows[i].map(c=>String(c).trim()));
+                        if (!seen.has(key)) { seen.add(key); cleaned.push(dataRows[i]); map[cleaned.length] = i+1; }
+                    }
+                    return { cleanedData: [headers, ...cleaned], originalRowMap: map };
+                }
+                self.onmessage = async function(e) {
+                    try {
+                        const { selectedSheetNames, params } = e.data; 
+                        const { useFuzzy, fuzzyThreshold, removeDuplicates, isTargeted, col1Index, col2Index, robustExactMatch, ignoredCols1, ignoredCols2, dedupeSourceSheets } = params; 
+                        const db = await idb.openDB(DB_NAME, DB_VERSION);
+                        const tab1 = selectedSheetNames[0]; const tab2 = selectedSheetNames[1];
+                        self.postMessage({ type: 'progress', percent: 10, text: 'Worker: Reading data...' });
+                        let sheet1Raw = await getAllRowsFromStore(db, ROW_STORE_PREFIX + tab1);
+                        let sheet2Raw = await getAllRowsFromStore(db, ROW_STORE_PREFIX + tab2);
+                        db.close();
+                        let clean1 = { cleanedData: sheet1Raw, originalRowMap: {} }, clean2 = { cleanedData: sheet2Raw, originalRowMap: {} };
+                        if (dedupeSourceSheets) {
+                            clean1 = preCleanComparisonData(sheet1Raw); clean2 = preCleanComparisonData(sheet2Raw);
+                        } else {
+                            clean1.originalRowMap = Array.from({length:sheet1Raw.length-1}, (_,i)=>i+1).reduce((a,i)=>({...a,[i]:i}),{});
+                            clean2.originalRowMap = Array.from({length:sheet2Raw.length-1}, (_,i)=>i+1).reduce((a,i)=>({...a,[i]:i}),{});
+                        }
+                        const headers1 = sheet1Raw[0], headers2 = sheet2Raw[0];
+                        const numCols1 = headers1.length, numCols2 = headers2.length;
+                        let loopCol1 = [], loopCol2 = [];
+                        const allCols1 = Array.from({length:numCols1}, (_,i)=>i), allCols2 = Array.from({length:numCols2}, (_,i)=>i);
+                        if (isTargeted) {
+                            loopCol1 = [col1Index];
+                            loopCol2 = (col2Index === 'all') ? allCols2.filter(i => !ignoredCols2.includes(i)) : [parseInt(col2Index)];
+                        } else {
+                            loopCol1 = allCols1.filter(i => !ignoredCols1.includes(i));
+                            loopCol2 = allCols2.filter(i => !ignoredCols2.includes(i));
+                        }
+                        const totalComparisons = loopCol1.length * loopCol2.length;
+                        self.postMessage({ type: 'progress', percent: 20, text: \`Worker: Running \${totalComparisons} comparisons...\` });
+                        let allMatches = []; let completed = 0;
+                        for (const col1 of loopCol1) {
+                            for (const col2 of loopCol2) {
+                                let res = findMatchesInColumns(clean1.cleanedData, clean2.cleanedData, col1, col2, useFuzzy, fuzzyThreshold, robustExactMatch);
+                                if (res.matches.length > 0) {
+                                    if (removeDuplicates) {
+                                        const unique = [], seen = new Set();
+                                        for (const m of res.matches) { const k = \`\${m.row1}-\${m.row2}\`; if(!seen.has(k)) { seen.add(k); unique.push(m); } }
+                                        res.matches = unique;
+                                    }
+                                    res.matches.forEach(m => { m.originalRow1 = clean1.originalRowMap[m.row1]; m.originalRow2 = clean2.originalRowMap[m.row2]; });
+                                    allMatches.push({ tab1, tab2, col1, col2, header1: headers1[col1] || 'Col '+(col1+1), header2: headers2[col2] || 'Col '+(col2+1), matches: res.matches, headers1, headers2, hasFuzzyMatches: res.hasFuzzy });
+                                }
+                                completed++;
+                                if (completed%5 === 0) self.postMessage({ type: 'progress', percent: 20 + (completed/totalComparisons)*80, text: 'Comparing...' });
+                            }
+                        }
+                        self.postMessage({ type: 'result', allMatches: allMatches });
+                    } catch (error) { self.postMessage({ type: 'error', message: error.message, stack: error.stack }); }
+                };
+            `;
+            const blob = new Blob([workerScript], { type: 'application/javascript' });
+            matchingWorker = new Worker(URL.createObjectURL(blob));
+            matchingWorker.onmessage = (event) => {
+                const data = event.data;
+                if (data.type === 'progress') updateProgress(data.percent, data.text);
+                else if (data.type === 'result') {
+                    allMatches = data.allMatches;
+                    currentFilteredGroups = allMatches; 
+                    updateProgress(100, `Found ${allMatches.length} matching groups.`);
+                    setTimeout(() => { progress.style.display = 'none'; displayResultsSummary(); matchBtn.disabled = false; targetedMatchBtn.disabled = false; matchingWorker.terminate(); }, 500);
+                } else if (data.type === 'error') { alert('Worker Error: ' + data.message); }
+            };
+        }
+
+        function startMatching(isTargeted) {
+            if (selectedSheets.length !== 2) { alert('Please select exactly two sheets.'); return; }
+            matchBtn.disabled = true; targetedMatchBtn.disabled = true; progress.style.display = 'block'; results.style.display = 'none';
+            setupWorker();
+            const ignoredCols1 = getCheckedColumnIndices(ignoreCols1Container);
+            const ignoredCols2 = getCheckedColumnIndices(ignoreCols2Container);
+            const params = {
+                useFuzzy: fuzzyMatch.checked, fuzzyThreshold: parseInt(document.getElementById('fuzzyThreshold').value),
+                removeDuplicates: removeDuplicates.checked, robustExactMatch: robustExactMatch.checked, dedupeSourceSheets: dedupeSourceSheets.checked,
+                ignoredCols1, ignoredCols2, isTargeted, col1Index: isTargeted ? parseInt(column1Selector.value) : null, col2Index: isTargeted ? column2Selector.value : null
+            };
+            matchingWorker.postMessage({ selectedSheetNames: selectedSheets, params });
+        }
+
+        function displayResultsSummary() {
+            const statsDiv = document.getElementById('stats');
+            const totalMatches = allMatches.reduce((sum, group) => sum + group.matches.length, 0);
+            statsDiv.innerHTML = `<div class="stat-item"><div class="stat-value">${totalMatches}</div><div class="stat-label">Total Matches</div></div><div class="stat-item"><div class="stat-value">${allMatches.length}</div><div class="stat-label">Unique Column Pairs Matched</div></div><div class="stat-item"><div class="stat-value">${selectedSheets[0]} vs ${selectedSheets[1]}</div><div class="stat-label">Sheets</div></div>`;
+            
+            allMatches.forEach((group, groupIdx) => { group.matches.forEach((match, matchIdx) => { if (typeof match.keep === 'undefined') match.keep = true; match.__originalIndex = matchIdx; }); });
+
+            populateHeaderSelector(); 
+            groupFiltersDiv.style.display = 'block'; results.style.display = 'block'; 
+            exportButtonContainer.style.display = 'flex'; // SHOW BUTTONS CONTAINER
+            exportAllBtn.style.display = 'flex';
+            exportAllToSingleSheetBtn.style.display = 'flex';
+            viewToggleContainer.style.display = 'flex';
+            if (allMatches.length > 0) populateExportIgnoreSelectors(allMatches[0]);
+            filterAndDisplayResults(); 
+        }
+        
+        function updateExportBtnText() {
+            const totalSel = allMatches.reduce((s, g) => s + g.matches.filter(m => m.keep).length, 0);
+            exportAllBtn.textContent = `Export ALL Selected Match Rows (${totalSel} rows) to Single Workbook (Multiple Sheets)`;
+            exportAllToSingleSheetBtn.textContent = `Export ALL Selected Match Rows (${totalSel} rows) to a Single Sheet (Combined)`;
+        }
+
+        function populateHeaderSelector() {
+            const selector = document.getElementById('headerSelector'); selector.innerHTML = '<option value="all">--- Show All Column Pairs ---</option>';
+            const uniquePairs = new Set(); allMatches.forEach(g => uniquePairs.add(`${g.tab1}|${g.col1}|${g.tab2}|${g.col2}`));
+            const sorted = Array.from(uniquePairs).map(f => {
+                const p = f.split('|'); const h1 = sheetHeaders[p[0]]?.[p[1]]||'Col '+(parseInt(p[1])+1); const h2 = sheetHeaders[p[2]]?.[p[3]]||'Col '+(parseInt(p[3])+1);
+                return { v: f, t: `${h1} ↔ ${h2}` };
+            }).sort((a,b) => a.t.localeCompare(b.t));
+            sorted.forEach(p => { const o = document.createElement('option'); o.value = p.v; o.textContent = p.t; selector.appendChild(o); });
+        }
+
+        function filterAndDisplayResults() {
+            const selHeader = headerSelector.value; const min = parseInt(minMatchesInput.value)||0; const max = parseInt(minMatchesInput.value)||9999999; const fuzz = filterFuzzyCheckbox.checked; // Fixed bug here: maxMatchesInput
+            const actualMax = parseInt(maxMatchesInput.value)||9999999; 
+            currentFilteredGroups = allMatches.filter(g => {
+                if (g.matches.length < min || g.matches.length > actualMax) return false;
+                if (selHeader !== 'all' && `${g.tab1}|${g.col1}|${g.tab2}|${g.col2}` !== selHeader) return false;
+                if (fuzz && !g.hasFuzzyMatches) return false;
+                return true;
+            });
+            
+            if (viewTableBtn.classList.contains('active')) renderMatchGroups(currentFilteredGroups);
+            else if (viewRelBtn.classList.contains('active')) renderRelationshipView();
+            else if (viewNetBtn.classList.contains('active')) renderNetworkView();
+        }
+
+        function renderMatchGroups(groups) {
+            const container = document.getElementById('matchGroups'); container.innerHTML = '';
+            updateExportBtnText();
+            if (groups.length === 0) { container.innerHTML = '<div class="info">No groups match filters.</div>'; return; }
+            
+            groups.forEach((g, idx) => {
+                const originalIdx = allMatches.indexOf(g);
+                const div = document.createElement('div'); div.className = 'match-group';
+                div.innerHTML = `
+                    <div class="match-header">
+                        <div class="dedupe-group-title">Group ${idx+1}: ${g.header1} ↔ ${g.header2}</div>
+                        <div>
+                            <button class="btn export-btn" style="background:#f06;" onclick="window.toggleAll(${originalIdx}, false)">Deselect All</button>
+                            <button class="btn export-btn" style="background:#0fa;" onclick="window.toggleAll(${originalIdx}, true)">Select All</button>
+                            <button class="btn export-btn" onclick="window.exportMatchGroup(${originalIdx})">Export Group</button>
+                        </div>
+                    </div>
+                    <div class="table-container"><table>${generateMatchTable(g, 1000)}</table></div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        window.toggleExportRow = function(cb) {
+            const gIdx = cb.getAttribute('data-g'), mIdx = cb.getAttribute('data-m');
+            allMatches[gIdx].matches[mIdx].keep = cb.checked;
+            updateExportBtnText();
+        }
+        window.toggleAll = function(gIdx, val) {
+            allMatches[gIdx].matches.forEach(m => m.keep = val);
+            filterAndDisplayResults();
+        }
+
+        function generateMatchTable(group, limit) {
+            const headers = ['Export', `${group.tab1} Row`, ...group.headers1, `${group.tab2} Row`, ...group.headers2];
+            let html = '<thead><tr>' + headers.map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+            const originalGIdx = allMatches.indexOf(group);
+            for (let i=0; i<Math.min(group.matches.length, limit); i++) {
+                const m = group.matches[i];
+                html += `<tr>
+                    <td><input type="checkbox" data-g="${originalGIdx}" data-m="${m.__originalIndex}" ${m.keep?'checked':''} onclick="window.toggleExportRow(this)"></td>
+                    <td>${m.originalRow1}</td>${m.data1.map((c,x)=>`<td>${x===group.col1?`<span class="highlight">${c}</span>`:c}</td>`).join('')}
+                    <td>${m.originalRow2}</td>${m.data2.map((c,x)=>`<td>${x===group.col2?`<span class="highlight">${c}</span>`:c}</td>`).join('')}
+                </tr>`;
+            }
+            return html + '</tbody>';
+        }
+
+        function prepareExportData(group, ig1=[], ig2=[]) {
+            const h1 = group.headers1.filter((_,i)=>!ig1.includes(i)); const h2 = group.headers2.filter((_,i)=>!ig2.includes(i));
+            const header = ['Match Type', `${group.tab1}_Row`, ...h1, `${group.tab2}_Row`, ...h2];
+            const rows = group.matches.filter(m=>m.keep).map(m => [
+                m.isFuzzy?'Fuzzy':'Exact', m.originalRow1, ...m.data1.filter((_,i)=>!ig1.includes(i)),
+                m.originalRow2, ...m.data2.filter((_,i)=>!ig2.includes(i))
+            ]);
+            return [header, ...rows];
+        }
+
+        // EXISTING FUNCTION: Exports to a workbook with a separate sheet for each match group.
+        function exportResults() {
+            const wb = XLSX.utils.book_new();
+            const ig1 = getCheckedColumnIndices(exportIgnoreCols1Container);
+            const ig2 = getCheckedColumnIndices(exportIgnoreCols2Container);
+            let count = 0;
+            allMatches.forEach(g => {
+                const data = prepareExportData(g, ig1, ig2);
+                if (data.length > 1) {
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    // Use a clean sheet name for Excel compliance
+                    const sheetName = `${g.header1.substring(0,10)}_vs_${g.header2.substring(0,10)}`.replace(/[^a-z0-9]/gi,'').substring(0, 31);
+                    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                    count += (data.length - 1);
+                }
+            });
+            if (count === 0) return alert("No rows selected.");
+            XLSX.writeFile(wb, "EDM_Results_MultiSheet.xlsx");
+        }
+
+        // NEW FUNCTION: Exports all selected rows across all groups into a single combined sheet.
+        function exportAllToSingleSheet() {
+            const ig1 = getCheckedColumnIndices(exportIgnoreCols1Container);
+            const ig2 = getCheckedColumnIndices(exportIgnoreCols2Container);
+            let combinedRows = [];
+            let totalExportCount = 0;
+
+            if (allMatches.length === 0) return alert("No matches to export.");
+            
+            const firstGroup = allMatches[0];
+            const h1 = firstGroup.headers1.filter((_, i) => !ig1.includes(i));
+            const h2 = firstGroup.headers2.filter((_, i) => !ig2.includes(i));
+            
+            // Define the common header for the combined sheet, including the matched columns for context
+            const header = ['Match Type', `${firstGroup.tab1}_Row`, ...h1, `${firstGroup.tab2}_Row`, ...h2, 'Matched_Col1', 'Matched_Col2'];
+
+            allMatches.forEach(g => {
+                g.matches.filter(m => m.keep).forEach(m => {
+                    // Filter the row data based on the ignore list
+                    const rowData1Filtered = m.data1.filter((_, i) => !ig1.includes(i));
+                    const rowData2Filtered = m.data2.filter((_, i) => !ig2.includes(i));
+                    
+                    const row = [
+                        m.isFuzzy ? 'Fuzzy' : 'Exact',
+                        m.originalRow1,
+                        ...rowData1Filtered,
+                        m.originalRow2,
+                        ...rowData2Filtered,
+                        g.header1, // Matched Column Header 1
+                        g.header2  // Matched Column Header 2
+                    ];
+                    
+                    combinedRows.push(row);
+                    totalExportCount++;
+                });
+            });
+
+            if (totalExportCount === 0) return alert("No rows selected for export.");
+
+            // Prepend the header row
+            combinedRows.unshift(header);
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(combinedRows);
+            XLSX.utils.book_append_sheet(wb, ws, "All Matches Combined");
+            XLSX.writeFile(wb, "EDM_All_Matches_Combined.xlsx");
+        }
+
+
+        window.exportMatchGroup = function(idx) {
+            const g = allMatches[idx];
+            const ig1 = getCheckedColumnIndices(exportIgnoreCols1Container);
+            const ig2 = getCheckedColumnIndices(exportIgnoreCols2Container);
+            const data = prepareExportData(g, ig1, ig2);
+            if (data.length <= 1) return alert("No rows selected in this group.");
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), "Results");
+            XLSX.writeFile(wb, "Match_Group_Export.xlsx");
+        }
+
+    </script>
+</body>
+</html>
