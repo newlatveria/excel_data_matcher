@@ -704,6 +704,8 @@
                 return;
             }
 
+            const usedNames = new Set();
+
             selectedGroups.forEach((g, idx) => {
                 const sheetData = [groupedData.headers];
                 g.rows.forEach(r => {
@@ -711,6 +713,7 @@
                 });
 
                 // Create sheet name from group key, sanitize for Excel
+                // Excel doesn't allow: \ / ? * [ ] :
                 let sheetName = g.key.substring(0, 30).replace(/[\/\\?*[\]:]/g, '_');
                 if(!sheetName) sheetName = `Group_${idx + 1}`;
                 if(sheetName.length > 31) sheetName = sheetName.substring(0, 31);
