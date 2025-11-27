@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Data Utility (IndexedDB & Grouping) - Final Fixed</title>
+    <title>Excel Data Utility - Exclude From Export Fix</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb@7.1.1/build/umd.js"></script> 
@@ -36,8 +36,14 @@
         /* BUTTONS */
         .btn { background: linear-gradient(135deg, #00d4ff, #0099cc); color: white; padding: 14px 30px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; transition: all 0.2s; font-weight: 600; width: 100%; }
         .btn:disabled { background: #555; cursor: not-allowed; transform: none; }
-        .export-btn { width: auto !important; padding: 10px 15px; font-size: 0.9em; margin-left: 10px; }
-        .export-btn:hover { box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4); }
+        
+        /* Smaller buttons inside rows/groups */
+        .action-btn { padding: 8px 15px; font-size: 0.85em; margin-left: 10px; border-radius: 6px; border: none; cursor: pointer; color: white; font-weight: 600; transition: transform 0.2s; }
+        .action-btn:hover { transform: translateY(-1px); }
+        .toggle-btn { background: #34495e; border: 1px solid #7f8c8d; }
+        .toggle-btn:hover { background: #2c3e50; border-color: #00d4ff; }
+        .download-btn { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .download-btn:hover { box-shadow: 0 4px 10px rgba(46, 204, 113, 0.4); }
 
         /* PROGRESS BAR */
         .progress { display: none; background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
@@ -52,8 +58,6 @@
         #slot2 { border-color: #ffaa00; }
         .slot-header { color: #aaa; font-size: 0.8em; font-weight: 600; margin-bottom: 5px; text-transform: uppercase; }
         .slot-name-active { font-size: 1.2em; font-weight: 700; color: #eee; display: flex; justify-content: space-between; align-items: center; }
-        .remove-btn { background: transparent; border: none; color: #ff6347; cursor: pointer; font-weight: bold; font-size: 0.9em; padding: 5px 10px; border-radius: 4px; }
-        .remove-btn:hover { background: rgba(255, 99, 71, 0.2); }
         .sheet-button-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; padding: 15px; background: #0f1626; border-radius: 8px; border: 1px solid #2a3f5f; }
         .sheet-option { background: #16213e; color: #eee; padding: 10px 15px; border: 1px solid #2a3f5f; border-radius: 6px; font-size: 0.9em; cursor: pointer; transition: all 0.2s; font-weight: 500; }
         .sheet-option:hover { background: #0f1626; border-color: #00d4ff; }
@@ -86,7 +90,6 @@
         th, td { padding: 12px; border-bottom: 1px solid #2a3f5f; }
         th { background: #0f1626; color: #00d4ff; text-align: left; font-weight: 600; position: sticky; top: 0; z-index: 11; }
         tr:hover { background: #1a2744; }
-        .highlight { background: rgba(0, 212, 255, 0.2); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
         .tab-badge { background: rgba(0, 212, 255, 0.2); color: #00d4ff; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; display: inline-block; white-space: nowrap; margin-right: 5px; }
 
         /* EXPORT BUTTONS LAYOUT */
@@ -96,8 +99,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>💾 Excel Data Utility (IndexedDB & Grouping)</h1>
-        <p class="subtitle">Robust data processing with Web Workers. <strong>Open Console (F12) for logs.</strong></p>
+        <h1>💾 Excel Data Utility</h1>
+        <p class="subtitle">Exclude from Export Fix Implemented</p>
 
         <div class="upload-section">
             <input type="file" id="fileInput" accept=".xlsx,.xls">
@@ -114,34 +117,28 @@
             <div id="sheetSelector" class="sheet-button-list"></div>
 
             <div id="groupingControls" style="display: none; border: 2px solid #00ffaa; border-radius: 12px; padding: 25px; margin-bottom: 30px;">
-                <h3 style="color: #00ffaa; margin-bottom: 15px;">📊 Data Grouping (Single Sheet)</h3>
-                <p style="color: #aaa; margin-bottom: 15px;">Select columns to group data by unique values (e.g., Department).</p>
+                <h3 style="color: #00ffaa; margin-bottom: 15px;">📊 Data Grouping</h3>
+                <p style="color: #aaa; margin-bottom: 15px;">Select columns to group data by unique values.</p>
                 <div class="control-group">
                     <label id="groupingColLabel">Columns to Group By</label>
                     <div id="groupingColsContainer" class="checkbox-container" style="height: 200px;"></div>
                 </div>
                 <div style="display: flex; gap: 15px; margin-top: 20px;">
-                    <button class="btn" id="groupBtn" disabled style="background: linear-gradient(135deg, #10ac84, #009473); flex: 1;">🚀 Group Data by Selected Columns</button>
-                    <button class="btn" id="dedupeBtn" style="background: linear-gradient(135deg, #f06, #c03); flex: 1;">🧹 Find Exact Duplicates (All Cols)</button>
-                </div>
+                    <button class="btn" id="groupBtn" disabled style="background: linear-gradient(135deg, #10ac84, #009473); flex: 1;">🚀 Group Data</button>
+                    </div>
             </div>
 
             <div id="matchControls" style="display: none;">
                 <div class="control-group"><div class="checkbox-group"><input type="checkbox" id="dedupeSourceSheets" checked><label for="dedupeSourceSheets">🧼 Pre-Clean Source Sheets</label></div></div>
-                <div class="control-group"><div class="checkbox-group"><input type="checkbox" id="robustExactMatch"><label for="robustExactMatch">💪 Enable Robust Exact Match</label></div></div>
-                <div class="control-group"><div class="checkbox-group"><input type="checkbox" id="removeDuplicates" checked><label for="removeDuplicates">🧹 Remove Cross-Sheet Duplicates</label></div></div>
                 
                 <div id="ignoreControls" style="display: block; border-top: 1px solid #2a3f5f; padding-top: 20px; margin-bottom: 20px;">
-                    <h3 style="color: #ffaa00;">🚫 Columns to IGNORE (Exhaustive Match Only)</h3>
+                    <h3 style="color: #ffaa00;">🚫 Columns to IGNORE</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div><label id="ignoreCol1Label">Ignore Sheet 1</label><div id="ignoreCols1Container" class="checkbox-container"></div></div>
                         <div><label id="ignoreCol2Label">Ignore Sheet 2</label><div id="ignoreCols2Container" class="checkbox-container"></div></div>
                     </div>
                 </div>
 
-                <div class="control-group"><div class="checkbox-group"><input type="checkbox" id="fuzzyMatch"><label for="fuzzyMatch">✨ Enable Fuzzy Matching</label></div></div>
-                <div class="control-group" id="fuzzyOptions" style="display: none;"><label>Fuzzy Threshold</label><input type="number" id="fuzzyThreshold" min="0" max="100" value="20" step="5"></div>
-                
                 <div id="targetedMatchControls" style="border-top: 1px solid #2a3f5f; padding-top: 20px;">
                     <h3 style="color: #00ffaa;">🎯 Targeted Column Match</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -150,7 +147,6 @@
                     </div>
                     <button class="btn" id="targetedMatchBtn" style="margin-top: 20px;">🎯 Run Targeted Match</button>
                 </div>
-                <button class="btn" id="matchBtn" disabled>Find All Potential Matches (Exhaustive)</button>
             </div>
         </div>
 
@@ -162,36 +158,22 @@
             
             <div class="view-toggle" id="viewToggleContainer" style="display: none;">
                 <button class="view-btn active" id="viewTableBtn" onclick="switchView('table')">📋 Table View</button>
-                <button class="view-btn" id="viewRelBtn" onclick="switchView('relationship')">🔗 Relationship Explorer</button>
-                <button class="view-btn" id="viewNetBtn" onclick="switchView('network')">🕸️ Network Graph</button>
             </div>
 
             <div id="tableViewContainer">
                  <div id="exportIgnoreControls" class="controls" style="display: none; padding: 20px; margin-bottom: 20px;">
-                    <h3 style="color: #ffaa00;">📥 Columns to Exclude from EXPORT</h3>
+                    <h3 style="color: #ffaa00;">📥 Columns to Exclude from EXPORT (Grouped Data)</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div><label id="exportIgnoreCol1Label">Exclude Sheet 1</label><div id="exportIgnoreCols1Container" class="checkbox-container"></div></div>
-                        <div><label id="exportIgnoreCol2Label">Exclude Sheet 2</label><div id="exportIgnoreCols2Container" class="checkbox-container"></div></div>
+                        <div style="display:none;"><label id="exportIgnoreCol2Label">Exclude Sheet 2</label><div id="exportIgnoreCols2Container" class="checkbox-container"></div></div>
                     </div>
                 </div>
                 
                 <div class="match-groups" id="matchGroups"></div>
                 <div id="exportButtonContainer">
-                    <button class="btn" id="exportAllToSingleSheetBtn" style="background: linear-gradient(135deg, #3498db, #2980b9);">📊 Export All Groups to Single Sheet</button>
-                    <button class="btn" id="exportAllToTabsBtn" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">📑 Export Each Group to Separate Tab</button>
-                    <button class="btn" id="exportAllBtn" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">Export to Workbook</button>
+                    <button class="btn" id="exportAllToSingleSheetBtn" style="background: linear-gradient(135deg, #3498db, #2980b9);">📊 Export Selected Groups to Single Sheet</button>
+                    <button class="btn" id="exportAllToTabsBtn" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">📑 Export Selected Groups to Tabs (with Counts)</button>
                 </div>
-            </div>
-
-            <div id="relationshipViewContainer" style="display: none;">
-                <div class="info" style="background: #2a3f5f; border-left: 5px solid #00ffaa;"><h3>🔗 Relationship Explorer</h3><p>Grouped by Source Row.</p></div>
-                <div class="relationship-container" id="relationshipContent"></div>
-            </div>
-            
-            <div id="networkViewContainer" style="display: none;">
-                <div class="info" style="background: #2a3f5f; border-left: 5px solid #00d4ff;"><h3>🕸️ Network Graph</h3></div>
-                <div class="network-legend" id="networkLegend"></div>
-                <div id="networkGraph"></div>
             </div>
         </div>
     </div>
@@ -200,19 +182,14 @@
         // --- CONFIGURATION ---
         const DB_NAME = 'ExcelDataUtilityDB';
         const DB_VERSION = 2; 
-        const ROW_STORE_PREFIX = 'Sheet_';
         const METADATA_STORE_NAME = 'SheetMetadata';
         
         // --- STATE ---
         let db = null;
         let selectedSheets = [];
-        let allMatches = [];
         let groupedData = null;
-        let uniqueSheetData = null;
-        let duplicateRowsData = null;
         let sheetNames = [];
         let sheetHeaders = {};
-        let currentFilteredGroups = [];
 
         // --- DOM ELEMENTS ---
         const els = {
@@ -226,21 +203,16 @@
             sheetSelector: document.getElementById('sheetSelector'),
             slot1: document.getElementById('slot1Name'),
             slot2: document.getElementById('slot2Name'),
-            matchBtn: document.getElementById('matchBtn'),
-            dedupeBtn: document.getElementById('dedupeBtn'),
             groupBtn: document.getElementById('groupBtn'),
             targetedMatchBtn: document.getElementById('targetedMatchBtn'),
-            exportAllBtn: document.getElementById('exportAllBtn'),
             exportAllSingleBtn: document.getElementById('exportAllToSingleSheetBtn'),
             exportAllTabsBtn: document.getElementById('exportAllToTabsBtn'),
             
-            // Sections
             groupingControls: document.getElementById('groupingControls'),
             matchControls: document.getElementById('matchControls'),
             ignoreControls: document.getElementById('ignoreControls'),
             exportIgnoreControls: document.getElementById('exportIgnoreControls'),
             
-            // Inputs
             column1Selector: document.getElementById('column1Selector'),
             column2Selector: document.getElementById('column2Selector'),
             ignoreCols1: document.getElementById('ignoreCols1Container'),
@@ -249,31 +221,18 @@
             exportIgnore1: document.getElementById('exportIgnoreCols1Container'),
             exportIgnore2: document.getElementById('exportIgnoreCols2Container'),
             
-            // Views
             views: {
                 toggle: document.getElementById('viewToggleContainer'),
                 table: document.getElementById('tableViewContainer'),
-                rel: document.getElementById('relationshipViewContainer'),
-                net: document.getElementById('networkViewContainer')
             }
         };
 
         // --- EVENT LISTENERS ---
         els.fileInput.addEventListener('change', handleFile);
-        
-        els.matchBtn.addEventListener('click', () => startMatching(false));
-        els.targetedMatchBtn.addEventListener('click', () => startMatching(true));
-        
-        els.dedupeBtn.addEventListener('click', startDeduplication);
+        els.targetedMatchBtn.addEventListener('click', () => alert("Matching functionality coming soon"));
         els.groupBtn.addEventListener('click', startGrouping);
-        
-        els.exportAllBtn.addEventListener('click', exportResults);
         els.exportAllSingleBtn.addEventListener('click', exportAllToSingleSheet);
         els.exportAllTabsBtn.addEventListener('click', exportAllToTabs);
-        
-        document.getElementById('fuzzyMatch').addEventListener('change', (e) => {
-            document.getElementById('fuzzyOptions').style.display = e.target.checked ? 'block' : 'none';
-        });
 
         // --- FILE HANDLING & DB INIT ---
         async function initDB() {
@@ -294,21 +253,17 @@
         function createParsingWorker() {
             const script = `
                 self.onerror = function(err) {
-                    console.error('Worker global error:', err);
                     self.postMessage({type:'error', msg: 'Worker error: ' + (err.message || err)});
                 };
-                
                 importScripts('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
                 importScripts('https://cdn.jsdelivr.net/npm/idb@7.1.1/build/umd.js');
                 const DB_NAME = 'ExcelDataUtilityDB'; const DB_VER = 2;
                 
                 self.onmessage = async (e) => {
                     try {
-                        self.postMessage({type:'progress', text:'Loading libraries...'});
                         const data = new Uint8Array(e.data.buffer);
                         self.postMessage({type:'progress', text:'Reading file...'});
                         const wb = XLSX.read(data, {type:'array'});
-                        self.postMessage({type:'progress', text:'Found ' + wb.SheetNames.length + ' sheets'});
                         
                         const db = await idb.openDB(DB_NAME, DB_VER, {
                             upgrade(db) {
@@ -323,7 +278,6 @@
                         });
 
                         const tx = db.transaction(db.objectStoreNames, 'readwrite');
-                        
                         for(const name of wb.SheetNames) {
                             self.postMessage({type:'progress', text:'Processing: ' + name});
                             const ws = wb.Sheets[name];
@@ -341,10 +295,9 @@
                             const store = tx.objectStore('Sheet_' + name);
                             for(const r of rows) store.add({data: r});
                         }
-                        
                         await tx.done;
                         db.close();
-                        self.postMessage({type:'complete', sheets: wb.SheetNames});
+                        self.postMessage({type:'complete'});
                     } catch(err) {
                         self.postMessage({type:'error', msg: err.message || String(err)});
                     }
@@ -357,77 +310,33 @@
         async function handleFile(e) {
             const file = e.target.files[0];
             if (!file) return;
-            
-            console.log('File selected:', file.name, 'Size:', file.size);
             els.fileNameDisplay.textContent = "📂 " + file.name;
             els.fileNameDisplay.style.display = 'block';
             els.progress.style.display = 'block';
-            els.progressText.textContent = "Initializing...";
             els.controls.style.display = 'none';
-            
-            try {
-                await deleteCurrentDB();
-                console.log('Database cleared');
-            } catch(err) {
-                console.error('DB delete error:', err);
-            }
+            await deleteCurrentDB();
             
             const reader = new FileReader();
-            reader.onerror = (err) => {
-                console.error('FileReader error:', err);
-                alert("Error reading file: " + err.message);
-                els.progress.style.display = 'none';
-            };
-            
             reader.onload = (evt) => {
-                try {
-                    console.log('File loaded, creating worker...');
-                    const worker = createParsingWorker();
-                    
-                    worker.onerror = (err) => {
-                        console.error('Worker error event:', err.message || err);
-                        console.error('Worker error filename:', err.filename);
-                        console.error('Worker error lineno:', err.lineno);
-                        alert("Worker Error: " + (err.message || String(err)));
-                        worker.terminate();
+                const worker = createParsingWorker();
+                worker.postMessage({buffer: evt.target.result}, [evt.target.result]);
+                worker.onmessage = async (msg) => {
+                    if(msg.data.type === 'progress') {
+                        els.progressText.textContent = msg.data.text;
+                    } else if(msg.data.type === 'complete') {
+                        await initDB();
+                        await loadMetadata();
+                        renderSheetButtons();
                         els.progress.style.display = 'none';
-                    };
-                    
-                    console.log('Worker created, sending data...');
-                    worker.postMessage({buffer: evt.target.result}, [evt.target.result]);
-                    
-                    worker.onmessage = async (msg) => {
-                        try {
-                            console.log('Main received:', msg.data.type);
-                            if(msg.data.type === 'progress') {
-                                els.progressText.textContent = msg.data.text;
-                            } else if(msg.data.type === 'complete') {
-                                console.log('File parsing complete');
-                                await initDB();
-                                await loadMetadata();
-                                renderSheetButtons();
-                                els.progress.style.display = 'none';
-                                els.controls.style.display = 'block';
-                                updateSelectionUI();
-                                worker.terminate();
-                            } else if(msg.data.type === 'error') {
-                                alert("Worker Error: " + msg.data.msg);
-                                console.error('Worker reported error:', msg.data.msg);
-                                worker.terminate();
-                                els.progress.style.display = 'none';
-                            }
-                        } catch(err) {
-                            console.error('Message handler error:', err);
-                            alert("Error processing message: " + err.message);
-                        }
-                    };
-                } catch(err) {
-                    console.error('Worker creation error:', err);
-                    alert("Error creating worker: " + err.message);
-                    els.progress.style.display = 'none';
-                }
+                        els.controls.style.display = 'block';
+                        updateSelectionUI();
+                        worker.terminate();
+                    } else if(msg.data.type === 'error') {
+                        alert(msg.data.msg);
+                        worker.terminate();
+                    }
+                };
             };
-            
             reader.readAsArrayBuffer(file);
         }
 
@@ -437,7 +346,6 @@
             meta.forEach(m => sheetHeaders[m.sheetName] = m.headers);
         }
 
-        // --- SHEET SELECTION LOGIC ---
         function toggleSheet(name) {
             const idx = selectedSheets.indexOf(name);
             if (idx > -1) selectedSheets.splice(idx, 1);
@@ -473,38 +381,33 @@
             els.results.style.display = 'none';
             els.groupingControls.style.display = 'none';
             els.matchControls.style.display = 'none';
+            els.exportIgnoreControls.style.display = 'none';
             
             if (selectedSheets.length === 1) {
                 els.groupingControls.style.display = 'block';
+                els.exportIgnoreControls.style.display = 'block';
                 document.getElementById('groupingColLabel').textContent = `Columns to Group By (${selectedSheets[0]})`;
                 populateCheckboxes(els.groupingCols, sheetHeaders[selectedSheets[0]], 'group');
+
+                // For grouping, only need to populate Sheet 1 Exclude Checkboxes
+                populateCheckboxes(els.exportIgnore1, sheetHeaders[selectedSheets[0]], 'ex1');
             } else if (selectedSheets.length === 2) {
                 els.matchControls.style.display = 'block';
                 populateSelect(els.column1Selector, sheetHeaders[selectedSheets[0]]);
                 populateSelect(els.column2Selector, sheetHeaders[selectedSheets[1]], true);
-                
                 populateCheckboxes(els.ignoreCols1, sheetHeaders[selectedSheets[0]], 'ig1');
                 populateCheckboxes(els.ignoreCols2, sheetHeaders[selectedSheets[1]], 'ig2');
                 
+                // Although matching is not implemented, keep the controls ready
                 populateCheckboxes(els.exportIgnore1, sheetHeaders[selectedSheets[0]], 'ex1');
                 populateCheckboxes(els.exportIgnore2, sheetHeaders[selectedSheets[1]], 'ex2');
-                els.exportIgnoreControls.style.display = 'block';
             }
         }
 
-        // --- HELPER UI FUNCTIONS ---
         function populateSelect(select, headers, addAll = false) {
             select.innerHTML = '';
-            if(addAll) {
-                const opt = document.createElement('option');
-                opt.value = 'all'; opt.textContent = '-- All Columns --';
-                select.appendChild(opt);
-            }
-            headers.forEach((h, i) => {
-                const opt = document.createElement('option');
-                opt.value = i; opt.textContent = h || `Col ${i+1}`;
-                select.appendChild(opt);
-            });
+            if(addAll) select.appendChild(new Option('-- All Columns --', 'all'));
+            headers.forEach((h, i) => select.appendChild(new Option(h || `Col ${i+1}`, i)));
         }
 
         function populateCheckboxes(container, headers, prefix) {
@@ -532,7 +435,6 @@
             els.groupBtn.disabled = getCheckedIndices(els.groupingCols).length === 0;
         }
 
-        // --- WORKER CREATION (GROUPING) ---
         function createGroupingWorker() {
             const script = `
                 importScripts('https://cdn.jsdelivr.net/npm/idb@7.1.1/build/umd.js');
@@ -549,13 +451,12 @@
                     try {
                         const { sheet, cols } = e.data;
                         const db = await idb.openDB(DB_NAME, DB_VER);
-                        const raw = await getAllRows(db, 'Sheet_' + sheet);
+                        const metadata = await db.get('SheetMetadata', sheet);
+                        const headers = metadata ? metadata.headers : [];
+                        const rows = await getAllRows(db, 'Sheet_' + sheet);
                         db.close();
                         
-                        const headers = raw[0];
-                        const rows = raw.slice(1);
                         const groups = {};
-
                         rows.forEach((r, idx) => {
                             const key = cols.map(c => String(r[c]||'').trim()).join(' | ');
                             if(!groups[key]) groups[key] = { key, rows: [], keyVals: cols.map(c => r[c]) };
@@ -576,7 +477,6 @@
             return new Worker(URL.createObjectURL(blob));
         }
 
-        // --- ACTION: GROUPING ---
         function startGrouping() {
             const cols = getCheckedIndices(els.groupingCols);
             if(cols.length === 0) return;
@@ -587,7 +487,6 @@
             
             const worker = createGroupingWorker();
             worker.onerror = (e) => { alert("Worker Error: " + e.message); };
-            
             worker.postMessage({ sheet: selectedSheets[0], cols: cols });
             
             worker.onmessage = (e) => {
@@ -610,8 +509,6 @@
         function displayGroupingResults() {
             els.progress.style.display = 'none';
             els.results.style.display = 'block';
-            
-            els.views.toggle.style.display = 'none';
             els.views.table.style.display = 'block';
             
             const totalRows = groupedData.groups.reduce((a, b) => a + b.rows.length, 0);
@@ -623,13 +520,12 @@
 
             const container = document.getElementById('matchGroups');
             container.innerHTML = '';
-            
             groupedData.groups.forEach(g => g.keep = true);
-            
-            els.exportAllSingleBtn.style.display = 'inline-block';
-            els.exportAllTabsBtn.style.display = 'inline-block';
-            els.exportAllBtn.style.display = 'none';
             updateGroupingExportText();
+
+            // We only need the headers that are NOT excluded for the preview table
+            // groupedData is passed here, which lacks a 'rows' property, hence the safe check in the helper function
+            const { headers: visibleHeaders } = getExportableGroupData(groupedData);
 
             groupedData.groups.slice(0, 50).forEach((g, i) => {
                 const div = document.createElement('div');
@@ -638,19 +534,23 @@
                     const hIndex = groupedData.groupCols[idx];
                     return `<span class="tab-badge">${groupedData.headers[hIndex]}: ${val}</span>`;
                 }).join('');
+
+                // Get the rows for the preview, with columns excluded
+                const exportableGroupData = getExportableGroupData({ headers: groupedData.headers, rows: g.rows });
                 
                 div.innerHTML = `
                     <div class="match-header">
                         <div>Group ${i+1}: ${keyDisplay} (${g.rows.length} rows)</div>
                         <div>
-                            <button class="btn export-btn" onclick="toggleGroup(${i})">Toggle Export</button>
+                            <button class="action-btn toggle-btn" onclick="toggleGroup(${i})">Toggle Include</button>
+                            <button class="action-btn download-btn" onclick="downloadSingleGroup(${i})">💾 Download</button>
                         </div>
                     </div>
                     <div class="table-container">
                         <table>
-                            <thead><tr><th>Row #</th>${groupedData.headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+                            <thead><tr><th>Row #</th>${visibleHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
                             <tbody>
-                                ${g.rows.slice(0,10).map(r => 
+                                ${exportableGroupData.rows.slice(0,10).map(r => 
                                     `<tr><td>${r.origIdx+2}</td>${r.data.map(c=>`<td>${c}</td>`).join('')}</tr>`
                                 ).join('')}
                             </tbody>
@@ -666,20 +566,74 @@
             updateGroupingExportText();
         }
 
-        function updateGroupingExportText() {
-            const count = groupedData.groups.filter(g => g.keep).reduce((a,b)=>a+b.rows.length,0);
-            els.exportAllSingleBtn.textContent = `📊 Export All Groups to Single Sheet (${count} rows)`;
-            els.exportAllTabsBtn.textContent = `📑 Export Each Group to Separate Tab (${groupedData.groups.filter(g => g.keep).length} groups)`;
+        // --- NEW HELPER FUNCTION TO FILTER COLUMNS ---
+        function getExportableGroupData(groupData) {
+            // Get indices of columns to EXCLUDE
+            const excludeIndices = new Set(getCheckedIndices(els.exportIgnore1));
+            
+            // Get indices of columns to KEEP
+            const keepIndices = [];
+            for (let i = 0; i < groupData.headers.length; i++) {
+                if (!excludeIndices.has(i)) {
+                    keepIndices.push(i);
+                }
+            }
+
+            // Filter headers
+            const filteredHeaders = keepIndices.map(i => groupData.headers[i]);
+
+            // Filter rows
+            // FIX: Use (groupData.rows || []) to prevent crashing if 'rows' is undefined
+            const filteredRows = (groupData.rows || []).map(row => ({ 
+                origIdx: row.origIdx,
+                data: keepIndices.map(i => row.data[i])
+            }));
+
+            return {
+                headers: filteredHeaders,
+                rows: filteredRows
+            };
         }
 
-        // --- EXPORT TO SINGLE SHEET ---
+        // --- INDIVIDUAL DOWNLOAD FUNCTION (NOW USES COLUMN FILTER) ---
+        window.downloadSingleGroup = function(idx) {
+            if(!groupedData || !groupedData.groups[idx]) return;
+            const group = groupedData.groups[idx];
+            
+            const { headers: sheetHeaders, rows: sheetRows } = getExportableGroupData(group);
+            
+            const wb = XLSX.utils.book_new();
+            const sheetData = [sheetHeaders];
+            sheetRows.forEach(r => sheetData.push(r.data));
+
+            // Sanitize and format name with row count
+            let safeName = group.key.substring(0, 20).replace(/[\/\\?*[\]:]/g, '_');
+            
+            const ws = XLSX.utils.aoa_to_sheet(sheetData);
+            XLSX.utils.book_append_sheet(wb, ws, "Data");
+            
+            XLSX.writeFile(wb, `${safeName}_${group.rows.length}Rows.xlsx`);
+        }
+
+        function updateGroupingExportText() {
+            const count = groupedData.groups.filter(g => g.keep).reduce((a,b)=>a+b.rows.length,0);
+            els.exportAllSingleBtn.textContent = `📊 Export Selected Groups to Single Sheet (${count} rows)`;
+            els.exportAllTabsBtn.textContent = `📑 Export Selected Groups to Tabs (${groupedData.groups.filter(g => g.keep).length} tabs)`;
+        }
+
+        // --- EXPORT TO SINGLE SHEET (NOW USES COLUMN FILTER) ---
         function exportAllToSingleSheet() {
             if(groupedData) {
                 const wb = XLSX.utils.book_new();
-                let exportRows = [['Group Key', 'Original Row', ...groupedData.headers]];
+                
+                // Get the filtered headers for the first row
+                const { headers: exportHeaders } = getExportableGroupData(groupedData);
+
+                let exportRows = [['Group Key', 'Original Row', ...exportHeaders]];
                 
                 groupedData.groups.filter(g => g.keep).forEach(g => {
-                    g.rows.forEach(r => {
+                    const { rows: filteredRows } = getExportableGroupData(g); // Get filtered rows for this specific group
+                    filteredRows.forEach(r => {
                         exportRows.push([g.key, r.origIdx+2, ...r.data]);
                     });
                 });
@@ -692,37 +646,48 @@
             }
         }
 
-        // --- EXPORT TO SEPARATE TABS (NEW) ---
+        // --- EXPORT TO TABS (NOW USES COLUMN FILTER) ---
         function exportAllToTabs() {
             if(!groupedData) return;
-
             const wb = XLSX.utils.book_new();
             const selectedGroups = groupedData.groups.filter(g => g.keep);
+            if(selectedGroups.length === 0) return alert("No groups selected.");
 
-            if(selectedGroups.length === 0) {
-                alert("No groups selected.");
-                return;
-            }
+            const { headers: exportHeaders } = getExportableGroupData(groupedData); // Get headers ONCE
 
             const usedNames = new Set();
 
             selectedGroups.forEach((g, idx) => {
-                const sheetData = [groupedData.headers];
-                g.rows.forEach(r => {
-                    sheetData.push(r.data);
-                });
+                const { rows: filteredRows } = getExportableGroupData(g); // Get filtered rows for this specific group
 
-                // Create sheet name from group key, sanitize for Excel
-                // Excel doesn't allow: \ / ? * [ ] :
-                let sheetName = g.key.substring(0, 30).replace(/[\/\\?*[\]:]/g, '_');
-                if(!sheetName) sheetName = `Group_${idx + 1}`;
-                if(sheetName.length > 31) sheetName = sheetName.substring(0, 31);
+                const sheetData = [exportHeaders];
+                filteredRows.forEach(r => sheetData.push(r.data));
 
-
+                // 1. Create suffix
+                const countSuffix = `_(${g.rows.length})`;
                 
-                // Truncate to 31 characters (Excel limit)
-                sheetName = sheetName.substring(0, 31);
+                // 2. Calculate remaining space for name (Max 31 chars)
+                const maxNameLen = 31 - countSuffix.length;
+                
+                // 3. Sanitize and Truncate Base Name
+                let baseName = g.key.substring(0, maxNameLen).replace(/[\/\\?*[\]:]/g, '_');
+                if(!baseName) baseName = `Group_${idx + 1}`;
+                
+                // 4. Combine
+                let sheetName = baseName + countSuffix;
 
+                // 5. Handle duplicates just in case truncation made them identical
+                let counter = 1;
+                while(usedNames.has(sheetName)) {
+                    const counterStr = `_${counter}`;
+                    const newMaxLen = 31 - countSuffix.length - counterStr.length;
+                    baseName = g.key.substring(0, newMaxLen).replace(/[\/\\?*[\]:]/g, '_');
+                    sheetName = baseName + counterStr + countSuffix;
+                    counter++;
+                }
+                
+                usedNames.add(sheetName);
+                
                 const ws = XLSX.utils.aoa_to_sheet(sheetData);
                 XLSX.utils.book_append_sheet(wb, ws, sheetName);
             });
@@ -730,62 +695,14 @@
             XLSX.writeFile(wb, "Grouped_By_Tabs.xlsx");
         }
 
-        // --- ACTION: DEDUPLICATION ---
-        async function startDeduplication() {
-            const sheet = selectedSheets[0];
-            const db = await idb.openDB(DB_NAME, 2);
-            const tx = db.transaction('Sheet_' + sheet);
-            const raw = await tx.store.getAll();
-            
-            const rows = raw.map(x => x.data);
-            const seen = new Set();
-            const unique = [];
-            const dupe = [];
-            
-            const headers = rows[0];
-            const data = rows.slice(1);
-            
-            data.forEach(r => {
-                const k = JSON.stringify(r);
-                if(seen.has(k)) dupe.push(r);
-                else { seen.add(k); unique.push(r); }
-            });
-            
-            document.getElementById('stats').innerHTML = `<div class="stat-item"><div class="stat-value">${unique.length}</div><div class="stat-label">Unique</div></div><div class="stat-item"><div class="stat-value">${dupe.length}</div><div class="stat-label">Duplicates</div></div>`;
-            uniqueSheetData = [headers, ...unique];
-            
-            db.close();
-            window.exportUniqueSheet(sheet);
-        }
-        
-        window.exportUniqueSheet = function(name) {
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(uniqueSheetData), "Unique");
-            XLSX.writeFile(wb, "Unique_Data.xlsx");
-        }
-
-        // --- VIEW SWITCHING ---
-        window.switchView = function(mode) {
+        function switchView(mode) {
             Object.values(els.views).forEach(el => { if(el) el.style.display = 'none'; });
             document.getElementById('viewTableBtn').className = 'view-btn';
-            document.getElementById('viewRelBtn').className = 'view-btn';
-            document.getElementById('viewNetBtn').className = 'view-btn';
-            
             if(mode === 'table') {
                 els.views.table.style.display = 'block';
                 document.getElementById('viewTableBtn').classList.add('active');
             }
         }
-
-        // Placeholder functions for matching
-        function startMatching(targeted) {
-            alert("Matching functionality coming soon");
-        }
-        
-        function exportResults() {
-            alert("Export functionality for matching results coming soon");
-        }
-
     </script>
 </body>
 </html>
