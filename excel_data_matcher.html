@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Data Utility (Dual Mode) - With Unmatched Data Export</title>
+    <title>Excel Data Utility (Dual Mode) - Performance Fix</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb@7.1.1/build/umd.js"></script>
     <style>
@@ -74,7 +74,7 @@
 <body>
     <div class="container">
         <h1>💾 Excel Data Utility (Dual Mode)</h1>
-        <p class="subtitle">Data is stored robustly in your browser's local database. Now includes <strong>Unmatched Data Export</strong>.</p>
+        <p class="subtitle">Data is stored robustly in your browser's local database. <strong>Optimized for larger files.</strong></p>
 
         <div class="upload-section">
             <input type="file" id="fileInput" accept=".xlsx,.xls">
@@ -336,7 +336,7 @@
             return rows;
         }
 
-        // --- Parsing Worker ---
+        // --- Parsing Worker (FIXED PERFORMANCE) ---
         function createParsingWorker(arrayBuffer) {
             const workerScript = `
                 importScripts('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
@@ -344,11 +344,14 @@
                 const DB_NAME = 'ExcelDataUtilityDB';
                 const ROW_STORE_PREFIX = 'Sheet_';
                 const METADATA_STORE_NAME = 'SheetMetadata';
+               
                 self.onmessage = async function(e) {
                     try {
                         const { fileData } = e.data;
                         const data = new Uint8Array(fileData);
                         const workbook = XLSX.read(data, { type: 'array' });
+                       
+                        // 1. Initialize Stores
                         const db = await idb.openDB(DB_NAME, 2, {
                             upgrade(db) {
                                 if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) db.createObjectStore(METADATA_STORE_NAME, { keyPath: 'sheetName' });
@@ -358,21 +361,39 @@
                                 });
                             }
                         });
+                        
+                        // 2. Process Sheets One by One (Transaction Isolation)
                         let totalRows = 0;
-                        const storeNames = [METADATA_STORE_NAME, ...workbook.SheetNames.map(name => ROW_STORE_PREFIX + name)];
-                        const tx = db.transaction(storeNames, 'readwrite');
-                        for (const sheetName of workbook.SheetNames) {
+                        const totalSheets = workbook.SheetNames.length;
+
+                        for (let i = 0; i < totalSheets; i++) {
+                            const sheetName = workbook.SheetNames[i];
                             const storeName = ROW_STORE_PREFIX + sheetName;
+                            
+                            // Calculate proper progress (50% is parsing done, 100% is all saved)
+                            const percent = 50 + Math.round(((i) / totalSheets) * 50);
+                            self.postMessage({ type: 'progress', percent: percent, text: \`Saving \${sheetName} (Sheet \${i+1}/\${totalSheets})...\` });
+
+                            // Start a transaction for THIS sheet only
+                            const tx = db.transaction([storeName, METADATA_STORE_NAME], 'readwrite');
                             const sheetStore = tx.objectStore(storeName);
                             const metadataStore = tx.objectStore(METADATA_STORE_NAME);
+                            
                             const sheetAsAoA = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '', raw: false, dateNF: 'YYYY-MM-DD HH:MM:SS' });
                             const headers = sheetAsAoA[0] || [];
+                            
                             metadataStore.put({ sheetName, headers, totalRows: sheetAsAoA.length - 1 });
-                            for (const row of sheetAsAoA) await sheetStore.add({ data: row });
-                            totalRows += sheetAsAoA.length - 1;
-                            self.postMessage({ type: 'progress', percent: 50, text: \`Loading \${sheetName}...\` });
+
+                            // PERFORMANCE FIX: Don't await individual adds. Queue them.
+                            // The transaction will commit once all requests are queued and processed.
+                            for (const row of sheetAsAoA) {
+                                sheetStore.add({ data: row });
+                            }
+                            
+                            await tx.done; // Wait for this sheet's transaction to fully commit
+                            totalRows += (sheetAsAoA.length - 1);
                         }
-                        await tx.done;
+
                         db.close();
                         self.postMessage({ type: 'complete', sheetNames: workbook.SheetNames, text: \`Parsed \${workbook.SheetNames.length} sheets, \${totalRows} rows.\` });
                     } catch (error) { self.postMessage({ type: 'error', message: error.message }); }
@@ -818,18 +839,10 @@
         window.toggleRow = (gi, mi, el) => { allMatches[gi].matches[mi].keep = el.checked; updateExportBtnText(); };
         window.toggleAll = (gi, val) => { allMatches[gi].matches.forEach(m => m.keep = val); filterAndDisplayResults(); updateExportBtnText(); };
 
-        // --- NEW: EXPORT WITH UNMATCHED DATA ---
+        // --- EXPORT WITH UNMATCHED DATA ---
         async function getUnmatchedData(sheetName, matchedRowIndices) {
             if(!db) await initDB();
             const allRows = await getAllRowsFromStore(ROW_STORE_PREFIX + sheetName);
-            // allRows[0] is header. Data starts at index 1 (which corresponds to Excel Row 2)
-            // matchedRowIndices contains 1-based original Excel Row Numbers (where 1 is header).
-            // Actually, in the worker pre-clean, we mapped data back to originalRow indices.
-            // Row 1 in Excel is Header.
-            // Row 2 in Excel is data array index 0 (if using sheet_to_json default) OR index 1 (if using header:1).
-            // We used header:1. So allRows[0] = Header. allRows[1] = Row 2.
-            // So if match.originalRow1 = 2, it corresponds to allRows[1].
-           
             const unmatched = allRows.filter((row, index) => {
                 if (index === 0) return true; // Keep header
                 const excelRowNum = index + 1;
@@ -842,15 +855,12 @@
             return row.filter((_, i) => !ignoreIndices.includes(i));
         }
 
-        // --- EXPORT ALL ---
         async function exportResults() {
             const wb = XLSX.utils.book_new();
             const ign1 = getCheckedColumnIndices(exportIgnoreCols1Container);
             const ign2 = getCheckedColumnIndices(exportIgnoreCols2Container);
 
-            // 1. Export Matched Tabs
             let hasMatches = false;
-            // Sets to track which rows were matched across ALL selected groups
             const matchedRows1 = new Set();
             const matchedRows2 = new Set();
 
@@ -858,13 +868,7 @@
                 const kept = g.matches.filter(m => m.keep);
                 if(kept.length === 0) return;
                 hasMatches = true;
-
-                // Track indices for unmatched calculation
-                kept.forEach(m => {
-                    matchedRows1.add(m.originalRow1);
-                    matchedRows2.add(m.originalRow2);
-                });
-
+                kept.forEach(m => { matchedRows1.add(m.originalRow1); matchedRows2.add(m.originalRow2); });
                 const data = [['Key1', 'Key2', 'Fuzzy', `Row_${g.tab1}`, ...filterRow(g.headers1, ign1), `Row_${g.tab2}`, ...filterRow(g.headers2, ign2)]];
                 kept.forEach(m => {
                     data.push([m.val1, m.val2, m.isFuzzy?'Yes':'No', m.originalRow1, ...filterRow(m.data1, ign1), m.originalRow2, ...filterRow(m.data2, ign2)]);
@@ -874,21 +878,14 @@
 
             if (!hasMatches) { alert("No rows selected."); return; }
 
-            // 2. Calculate and Export Unmatched Tabs
             const unmatched1 = await getUnmatchedData(selectedSheets[0], matchedRows1);
             const unmatched2 = await getUnmatchedData(selectedSheets[1], matchedRows2);
-
-            // Apply column ignores to unmatched data
-            const cleanUnmatched1 = unmatched1.map(r => filterRow(r, ign1));
-            const cleanUnmatched2 = unmatched2.map(r => filterRow(r, ign2));
-
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cleanUnmatched1), `Unmatched_${selectedSheets[0]}`.substring(0,31));
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cleanUnmatched2), `Unmatched_${selectedSheets[1]}`.substring(0,31));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(unmatched1.map(r => filterRow(r, ign1))), `Unmatched_${selectedSheets[0]}`.substring(0,31));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(unmatched2.map(r => filterRow(r, ign2))), `Unmatched_${selectedSheets[1]}`.substring(0,31));
 
             XLSX.writeFile(wb, 'Comparison_Results_With_Unmatched.xlsx');
         }
 
-        // --- EXPORT SINGLE GROUP ---
         window.exportMatchGroup = async function(idx) {
             const g = allMatches[idx];
             const kept = g.matches.filter(m => m.keep);
@@ -908,8 +905,6 @@
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Matches');
-
-            // Unmatched specific to this group
             const unmatched1 = await getUnmatchedData(selectedSheets[0], matchedRows1);
             const unmatched2 = await getUnmatchedData(selectedSheets[1], matchedRows2);
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(unmatched1.map(r => filterRow(r, ign1))), `Unmatched_${selectedSheets[0]}`.substring(0,31));
@@ -918,7 +913,6 @@
             XLSX.writeFile(wb, `Match_${g.header1}_vs_${g.header2}.xlsx`);
         }
 
-        // Init
         initDB().then(() => getMetadata().then(() => {
             if(sheetNames.length) {
                 initializeSheetSelector(sheetNames); controls.style.display='block'; updateSelectionDisplay(); updateSelectionStatus();
